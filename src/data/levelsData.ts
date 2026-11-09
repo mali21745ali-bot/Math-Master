@@ -1,0 +1,111 @@
+import { LevelInfo, LevelTier, Difficulty } from '../types';
+
+export const levelsData: LevelInfo[] = [
+  {
+    level: 1,
+    difficulty: 'easy',
+    titleEn: 'Level 1: Gentle Start',
+    titleUr: 'لیول 1: آسان شروعات',
+    descriptionEn: 'Single step fundamental arithmetic with picture guidance',
+    descriptionUr: 'آسان بنیادی ریاضی اور تصویری رہنمائی',
+    questionsCount: 5,
+    timeLimitSec: 60,
+  },
+  {
+    level: 2,
+    difficulty: 'easy',
+    titleEn: 'Level 2: Building Speed',
+    titleUr: 'لیول 2: رفتار بڑھائیں',
+    descriptionEn: 'Quick recognition and basic number pairing',
+    descriptionUr: 'تیز تر عدد شناسی اور آسان جوڑ',
+    questionsCount: 5,
+    timeLimitSec: 55,
+  },
+  {
+    level: 3,
+    difficulty: 'medium',
+    titleEn: 'Level 3: Normal Warmup',
+    titleUr: 'لیول 3: نارمل مشق',
+    descriptionEn: 'Two-digit fundamentals and steady mental pace',
+    descriptionUr: 'دو ہندسی بنیادی سوالات اور ذہنی رفتار',
+    questionsCount: 5,
+    timeLimitSec: 50,
+  },
+  {
+    level: 4,
+    difficulty: 'medium',
+    titleEn: 'Level 4: Stepping Up',
+    titleUr: 'لیول 4: قدم آگے بڑھائیں',
+    descriptionEn: 'Mixed patterns and slightly larger values',
+    descriptionUr: 'مختلف اعداد کے ساتھ تھوڑی بڑی رقمیں',
+    questionsCount: 5,
+    timeLimitSec: 45,
+  },
+  {
+    level: 5,
+    difficulty: 'medium',
+    titleEn: 'Level 5: Medium Challenge',
+    titleUr: 'لیول 5: درمیانی چیلنج',
+    descriptionEn: 'Carrying over, borrowing, and table fluency',
+    descriptionUr: 'حاصل والے اور ادھار والے سوالات کی روانی',
+    questionsCount: 5,
+    timeLimitSec: 40,
+  },
+  {
+    level: 6,
+    difficulty: 'medium',
+    titleEn: 'Level 6: Sharp Mind',
+    titleUr: 'لیول 6: تیز دماغ',
+    descriptionEn: 'Fast calculations with tight timer pressure',
+    descriptionUr: 'وقت کے دباؤ میں فوری حسابی فیصلے',
+    questionsCount: 5,
+    timeLimitSec: 38,
+  },
+  {
+    level: 7,
+    difficulty: 'hard',
+    titleEn: 'Level 7: Hard Tier',
+    titleUr: 'لیول 7: مشکل مرحلہ',
+    descriptionEn: 'Complex three-digit steps and mental regrouping',
+    descriptionUr: 'تین ہندسی پیچیدہ سوالات اور گروپ بندی',
+    questionsCount: 5,
+    timeLimitSec: 35,
+  },
+  {
+    level: 8,
+    difficulty: 'hard',
+    titleEn: 'Level 8: Master Tactician',
+    titleUr: 'لیول 8: ماہر ریاضی دان',
+    descriptionEn: 'Deep focus, fast carry arithmetic, and accuracy',
+    descriptionUr: 'مکمل توجہ، تیز رفتار حساب اور درستی',
+    questionsCount: 5,
+    timeLimitSec: 30,
+  },
+  {
+    level: 9,
+    difficulty: 'expert',
+    titleEn: 'Level 9: Expert Trial',
+    titleUr: 'لیول 9: ماہرانہ امتحان',
+    descriptionEn: 'High-speed high-value calculations',
+    descriptionUr: 'تیز ترین رفتار اور بڑے اعداد کا امتحان',
+    questionsCount: 5,
+    timeLimitSec: 28,
+  },
+  {
+    level: 10,
+    difficulty: 'expert',
+    titleEn: 'Level 10: Grand Challenge',
+    titleUr: 'لیول 10: عظیم الشان چیلنج',
+    descriptionEn: 'The ultimate mathematics master test with maximum stars',
+    descriptionUr: 'میتھ ماسٹر کا حتمی چیلنج اور 3 سنہری ستارے',
+    questionsCount: 5,
+    timeLimitSec: 25,
+  },
+];
+
+export const getDifficultyForLevel = (level: number): Difficulty => {
+  if (level <= 2) return 'easy';
+  if (level <= 6) return 'medium';
+  if (level <= 8) return 'hard';
+  return 'expert';
+};

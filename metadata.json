@@ -1,0 +1,6 @@
+{
+  "name": "MATH MASTER – ریاضی کی دنیا",
+  "description": "Comprehensive mathematics learning and educational gaming platform from Nursery to University level with bilingual English and Urdu support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
