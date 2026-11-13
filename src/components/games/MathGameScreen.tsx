@@ -417,23 +417,23 @@ export const MathGameScreen: React.FC<MathGameScreenProps> = ({ operation, onBac
             <div className="brass-rivet bottom-2 left-2" />
             <div className="brass-rivet bottom-2 right-2" />
 
-            <div className="wood-board-inner p-4 sm:p-6 text-center space-y-3 relative">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-700/60 text-[11px] font-bold text-amber-300 shadow-inner">
-                <span>{opMeta.symbol}</span>
+            <div className="question-display-box p-5 sm:p-8 text-center space-y-3.5 relative min-h-[160px] flex flex-col items-center justify-center">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-900/90 border border-amber-400/50 text-xs font-black text-amber-100 shadow-md">
+                <span className="text-yellow-300">{opMeta.symbol}</span>
                 <span>{isUrdu ? opMeta.titleUr : opMeta.titleEn}</span>
-                <span>•</span>
-                <span className="text-amber-100">{currentQ.topic}</span>
+                <span className="text-amber-300">•</span>
+                <span className="text-yellow-200">{currentQ.topic}</span>
               </div>
 
               {hasVisualHeaderLine && (
-                <div className="text-2xl sm:text-3xl tracking-widest py-1 drop-shadow-md select-none animate-subtle">
+                <div className="text-3xl sm:text-4xl tracking-widest py-1 drop-shadow-md select-none animate-subtle">
                   {questionLines[0]}
                 </div>
               )}
 
               <div
                 dir="ltr"
-                className="text-2xl sm:text-4xl font-black text-amber-100 tracking-wider font-mono drop-shadow-md py-1 break-words"
+                className="question-display-text question-highlight-eq text-3xl sm:text-5xl tracking-wider font-mono py-2 break-words"
               >
                 {hasVisualHeaderLine ? questionLines[1] : activeQuestionText}
               </div>

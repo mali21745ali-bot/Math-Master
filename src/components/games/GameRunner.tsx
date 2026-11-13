@@ -612,13 +612,13 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
             <div className="absolute bottom-2.5 left-2.5 brass-rivet" />
             <div className="absolute bottom-2.5 right-2.5 brass-rivet" />
 
-            <div className="wood-board-inner p-5 sm:p-7 min-h-[140px] flex flex-col items-center justify-center">
-              <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider mb-1">
+            <div className="question-display-box p-5 sm:p-8 min-h-[155px] flex flex-col items-center justify-center">
+              <span className="text-xs font-black uppercase text-amber-200 tracking-wider mb-2">
                 {isUrdu ? `سوال #${questionCount + 1} از 10` : `Problem #${questionCount + 1} of 10`}
               </span>
 
               <div
-                className="text-xl sm:text-2xl md:text-3xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] math-symbol leading-snug"
+                className="question-display-text text-2xl sm:text-3xl md:text-4xl math-symbol"
                 dir={currentQ.isMathOnly ? 'ltr' : undefined}
               >
                 {isUrdu ? currentQ.promptUr : currentQ.promptEn}

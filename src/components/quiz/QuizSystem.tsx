@@ -323,14 +323,14 @@ export const QuizSystem: React.FC = () => {
           <div className="absolute bottom-2.5 left-2.5 brass-rivet" />
           <div className="absolute bottom-2.5 right-2.5 brass-rivet" />
 
-          <div className="wood-board-inner p-5 sm:p-7 min-h-[140px] flex flex-col items-center justify-center">
+          <div className="question-display-box p-5 sm:p-8 min-h-[155px] flex flex-col items-center justify-center">
             {currentQ.visualEmoji && currentQ.visualCount && currentQ.visualCount <= 20 && (
               <div className="text-2xl sm:text-3xl mb-2 tracking-widest animate-pulse">
                 {Array(currentQ.visualCount).fill(currentQ.visualEmoji).join(' ')}
               </div>
             )}
 
-            <div className="text-xl sm:text-2xl md:text-3xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] leading-snug whitespace-pre-line">
+            <div className="question-display-text text-2xl sm:text-3xl md:text-4xl whitespace-pre-line">
               {profile.language === 'ur' ? currentQ.questionUr : currentQ.questionEn}
             </div>
           </div>

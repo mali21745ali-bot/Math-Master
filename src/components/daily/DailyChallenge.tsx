@@ -169,8 +169,8 @@ export const DailyChallenge: React.FC = () => {
         currentQ && (
           <div className="space-y-4">
             <div className="wood-board-3d p-4 sm:p-6 text-center relative shadow-2xl">
-              <div className="wood-board-inner p-5 sm:p-7 min-h-[140px] flex flex-col items-center justify-center">
-                <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider mb-1">
+              <div className="question-display-box p-5 sm:p-8 min-h-[155px] flex flex-col items-center justify-center">
+                <span className="text-xs font-black uppercase text-amber-200 tracking-wider mb-2">
                   {isUrdu
                     ? `روزانہ سوال #${currentIndex + 1} از ${questions.length}`
                     : `Daily Problem #${currentIndex + 1} of ${questions.length}`}
@@ -182,7 +182,7 @@ export const DailyChallenge: React.FC = () => {
                   </div>
                 )}
 
-                <div className="text-xl sm:text-2xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] math-symbol leading-snug whitespace-pre-line">
+                <div className="question-display-text text-2xl sm:text-3xl math-symbol whitespace-pre-line">
                   {isUrdu ? currentQ.questionUr : currentQ.questionEn}
                 </div>
               </div>
