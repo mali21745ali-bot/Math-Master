@@ -27,6 +27,12 @@ npm run dev
 npm run build
 ```
 
+## Deploy to Cloudflare Pages
+- **Build command**: `npm run build`
+- **Build output directory**: `dist`
+- **Package manager**: `npm` (`npm ci` and `npm run build` are synced via `package-lock.json`)
+- Uses `public/_redirects` for seamless SPA routing.
+
 ## Deploy to Netlify
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`
