@@ -27,13 +27,13 @@ npm run dev
 npm run build
 ```
 
-## Deploy to Cloudflare Pages
+## Deploy to Cloudflare Workers / Pages
 - **Build command**: `npm run build`
-- **Build output directory**: `dist`
+- **Build output / assets directory**: `dist`
 - **Package manager**: `npm` (`npm ci` and `npm run build` are synced via `package-lock.json`)
-- Uses `public/_redirects` for seamless SPA routing.
+- **SPA Routing**: Handled natively by `wrangler.jsonc` (`"not_found_handling": "single-page-application"`) for Cloudflare Workers and Cloudflare Pages automatic SPA fallback (no `_redirects` file needed).
 
 ## Deploy to Netlify
 - **Build command**: `npm run build`
 - **Publish directory**: `dist`
-- Configured via `netlify.toml` and `public/_redirects` for seamless SPA routing.
+- Configured via `netlify.toml` (`[[redirects]]`) for seamless SPA routing.
