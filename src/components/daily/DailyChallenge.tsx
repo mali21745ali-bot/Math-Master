@@ -6,19 +6,17 @@ import { sound } from '../../services/sound';
 import {
   CalendarDays,
   Flame,
-  CheckCircle2,
   Trophy,
   ArrowRight,
   RotateCcw,
-  Sparkles,
   Gift,
-  Coins,
 } from 'lucide-react';
 
 export const DailyChallenge: React.FC = () => {
   const {
     profile,
     t,
+    isUrdu,
     recordDailyChallengeCompleted,
     triggerConfetti,
   } = useApp();
@@ -84,7 +82,7 @@ export const DailyChallenge: React.FC = () => {
     }
   };
 
-  const options = profile.language === 'ur'
+  const options = isUrdu
     ? currentQ?.optionsUr || currentQ?.optionsEn || []
     : currentQ?.optionsEn || [];
 
@@ -101,20 +99,24 @@ export const DailyChallenge: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/30 text-amber-300 text-xs font-bold mb-1">
               <CalendarDays className="w-3.5 h-3.5" />
-              <span>Today's Challenge</span>
+              <span>{isUrdu ? 'آج کا چیلنج' : "Today's Challenge"}</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-amber-100 drop-shadow-md">
               {t.sections.dailyChallengeTitle}
             </h1>
             <p className="text-xs text-amber-200/90 mt-0.5">
-              5 Daily math questions to earn +100 points!
+              {isUrdu
+                ? '+100 بونس پوائنٹس جیتنے کے لیے 5 روزانہ سوالات حل کریں!'
+                : '5 Daily math questions to earn +100 points!'}
             </p>
           </div>
 
-          <div className="wood-panel-3d p-2.5 text-center min-w-[76px] border border-amber-800">
+          <div className="wood-panel-3d p-2.5 text-center min-w-[76px] border border-amber-800 flex-shrink-0">
             <Flame className="w-5 h-5 text-orange-400 mx-auto fill-orange-400 animate-pulse" />
-            <div className="text-sm font-black text-amber-200 mt-0.5">{profile.streakDays}d</div>
-            <div className="text-[9px] uppercase font-bold text-amber-300">Streak</div>
+            <div className="text-sm font-black text-amber-200 mt-0.5" dir="ltr">
+              {profile.streakDays}d
+            </div>
+            <div className="text-[9px] uppercase font-bold text-amber-300">{t.common.streak}</div>
           </div>
         </div>
       </div>
@@ -128,16 +130,22 @@ export const DailyChallenge: React.FC = () => {
 
           <div>
             <h2 className="text-2xl font-black text-amber-100 drop-shadow-md">
-              Daily Challenge Complete!
+              {isUrdu ? 'آج کا چیلنج مکمل ہو گیا!' : 'Daily Challenge Complete!'}
             </h2>
             <p className="text-xs text-amber-300 mt-0.5">
-              +100 Bonus points awarded! Streak maintained at {profile.streakDays} days.
+              {isUrdu
+                ? `+100 بونس پوائنٹس ملے! تسلسل: ${profile.streakDays} دن`
+                : `+100 Bonus points awarded! Streak maintained at ${profile.streakDays} days.`}
             </p>
           </div>
 
           <div className="wood-board-inner p-3.5 border border-amber-800 flex items-center justify-center gap-2 text-yellow-300 font-bold text-xs">
-            <Gift className="w-4 h-4 text-amber-400" />
-            <span>Come back tomorrow for new math problems!</span>
+            <Gift className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>
+              {isUrdu
+                ? 'نئے ریاضی سوالات کے لیے کل دوبارہ آئیں!'
+                : 'Come back tomorrow for new math problems!'}
+            </span>
           </div>
 
           <button
@@ -153,7 +161,7 @@ export const DailyChallenge: React.FC = () => {
             className="green-btn-3d w-full py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Practice Another Set</span>
+            <span>{isUrdu ? 'مزید سوالات کی مشق کریں' : 'Practice Another Set'}</span>
           </button>
         </div>
       ) : (
@@ -163,17 +171,19 @@ export const DailyChallenge: React.FC = () => {
             <div className="wood-board-3d p-4 sm:p-6 text-center relative shadow-2xl">
               <div className="wood-board-inner p-5 sm:p-7 min-h-[140px] flex flex-col items-center justify-center">
                 <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider mb-1">
-                  Daily Problem #{currentIndex + 1} of {questions.length}
+                  {isUrdu
+                    ? `روزانہ سوال #${currentIndex + 1} از ${questions.length}`
+                    : `Daily Problem #${currentIndex + 1} of ${questions.length}`}
                 </span>
 
-                {currentQ.visualEmoji && currentQ.visualCount && (
+                {currentQ.visualEmoji && currentQ.visualCount && currentQ.visualCount <= 20 && (
                   <div className="text-2xl sm:text-3xl mb-2 tracking-widest animate-pulse">
                     {Array(currentQ.visualCount).fill(currentQ.visualEmoji).join(' ')}
                   </div>
                 )}
 
-                <div className="text-xl sm:text-2xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] math-symbol leading-snug">
-                  {profile.language === 'ur' ? currentQ.questionUr : currentQ.questionEn}
+                <div className="text-xl sm:text-2xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] math-symbol leading-snug whitespace-pre-line">
+                  {isUrdu ? currentQ.questionUr : currentQ.questionEn}
                 </div>
               </div>
             </div>
@@ -209,8 +219,8 @@ export const DailyChallenge: React.FC = () => {
             {/* Explanation on check */}
             {checkedStatus[currentIndex] && (
               <div className="wood-panel-3d p-3 text-amber-200 text-xs border border-amber-800 text-center">
-                <strong>Solution: </strong>
-                {profile.language === 'ur' ? currentQ.explanationUr : currentQ.explanationEn}
+                <strong>{isUrdu ? 'حل: ' : 'Solution: '}</strong>
+                {isUrdu ? currentQ.explanationUr : currentQ.explanationEn}
               </div>
             )}
 
@@ -222,7 +232,7 @@ export const DailyChallenge: React.FC = () => {
                     onClick={handleCheck}
                     className="green-btn-3d px-4 py-2 rounded-xl text-xs font-black cursor-pointer"
                   >
-                    Check
+                    {isUrdu ? 'چیک کریں' : 'Check'}
                   </button>
                 )}
               </div>
@@ -231,7 +241,11 @@ export const DailyChallenge: React.FC = () => {
                 onClick={handleNext}
                 className="green-btn-3d px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 cursor-pointer shadow-md"
               >
-                <span>{currentIndex === questions.length - 1 ? 'Claim Reward' : t.common.next}</span>
+                <span>
+                  {currentIndex === questions.length - 1
+                    ? (isUrdu ? 'انعام حاصل کریں' : 'Claim Reward')
+                    : t.common.next}
+                </span>
                 <ArrowRight className="w-4 h-4 rtl:rotate-180" />
               </button>
             </div>

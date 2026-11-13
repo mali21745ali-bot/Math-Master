@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { classesList } from '../../data/classesData';
 import { sound } from '../../services/sound';
@@ -10,6 +10,7 @@ import {
   GraduationCap,
   RotateCcw,
   ShieldAlert,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -23,8 +24,10 @@ export const SettingsView: React.FC = () => {
     isUrdu,
   } = useApp();
 
+  const [confirmReset, setConfirmReset] = useState(false);
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-12">
+    <div className="max-w-3xl mx-auto space-y-6 pb-12 select-none">
       {/* 3D Wooden Header Plaque */}
       <div className="wood-board-3d p-6 relative overflow-hidden">
         <div className="brass-rivet top-2 left-2" />
@@ -33,7 +36,7 @@ export const SettingsView: React.FC = () => {
         <div className="brass-rivet bottom-2 right-2" />
 
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200/60 shadow-md flex items-center justify-center text-amber-950">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 border-2 border-amber-200/60 shadow-md flex items-center justify-center text-amber-950 flex-shrink-0">
             <Settings className="w-6 h-6" />
           </div>
           <div>
@@ -41,7 +44,9 @@ export const SettingsView: React.FC = () => {
               {t.nav.settings}
             </h1>
             <p className="text-xs sm:text-sm text-amber-200/80 font-medium">
-              Customize language, audio sound effects, and default class levels
+              {isUrdu
+                ? 'زبان، صوتی اثرات اور اپنی بنیادی کلاس کی ترتیبات تبدیل کریں'
+                : 'Customize language, audio sound effects, and default class levels'}
             </p>
           </div>
         </div>
@@ -54,12 +59,16 @@ export const SettingsView: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-950/60 border border-amber-700/60 text-amber-300 flex items-center justify-center shadow-inner">
+            <div className="w-11 h-11 rounded-xl bg-amber-950/60 border border-amber-700/60 text-amber-300 flex items-center justify-center shadow-inner flex-shrink-0">
               <Languages className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-bold text-base text-amber-100">Language / زبان کا انتخاب</h3>
-              <p className="text-xs text-amber-200/70">Toggle between English (LTR) and Urdu (RTL)</p>
+              <p className="text-xs text-amber-200/70">
+                {isUrdu
+                  ? 'انگریزی (LTR) اور اردو (RTL) کے درمیان تبدیلی کریں'
+                  : 'Toggle between English (LTR) and Urdu (RTL)'}
+              </p>
             </div>
           </div>
 
@@ -97,13 +106,17 @@ export const SettingsView: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-950/60 border border-amber-700/60 text-amber-300 flex items-center justify-center shadow-inner">
+            <div className="w-11 h-11 rounded-xl bg-amber-950/60 border border-amber-700/60 text-amber-300 flex items-center justify-center shadow-inner flex-shrink-0">
               {profile.soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="font-bold text-base text-amber-100">Audio Feedback & Sound Effects</h3>
+              <h3 className="font-bold text-base text-amber-100">
+                {isUrdu ? 'صوتی اثرات اور آواز' : 'Audio Feedback & Sound Effects'}
+              </h3>
               <p className="text-xs text-amber-200/70">
-                Play pleasant chimes for correct answers, clicks, and celebratory fanfares
+                {isUrdu
+                  ? 'درست جوابات، کلکس اور جیت پر خوشگوار آوازیں سنیں'
+                  : 'Play pleasant chimes for correct answers, clicks, and celebratory fanfares'}
               </p>
             </div>
           </div>
@@ -112,11 +125,13 @@ export const SettingsView: React.FC = () => {
             onClick={() => {
               toggleSound();
             }}
-            className={`px-5 py-2.5 rounded-xl text-xs font-black cursor-pointer transition-transform ${
+            className={`px-5 py-2.5 rounded-xl text-xs font-black cursor-pointer transition-transform flex-shrink-0 ${
               profile.soundEnabled ? 'green-btn-3d text-white' : 'wood-btn-3d text-amber-200'
             }`}
           >
-            {profile.soundEnabled ? '🔊 Sound On' : '🔇 Muted'}
+            {profile.soundEnabled
+              ? (isUrdu ? '🔊 آواز آن ہے' : '🔊 Sound On')
+              : (isUrdu ? '🔇 خاموش ہے' : '🔇 Muted')}
           </button>
         </div>
       </div>
@@ -128,13 +143,17 @@ export const SettingsView: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-950/60 border border-amber-700/60 text-amber-300 flex items-center justify-center shadow-inner">
+            <div className="w-11 h-11 rounded-xl bg-amber-950/60 border border-amber-700/60 text-amber-300 flex items-center justify-center shadow-inner flex-shrink-0">
               <GraduationCap className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-amber-100">Default Class Level</h3>
+              <h3 className="font-bold text-base text-amber-100">
+                {isUrdu ? 'بنیادی کلاس لیول' : 'Default Class Level'}
+              </h3>
               <p className="text-xs text-amber-200/70">
-                Currently set to {t.classes[profile.classLevel]?.title}
+                {isUrdu
+                  ? `موجودہ منتخب کلاس: ${t.classes[profile.classLevel]?.title}`
+                  : `Currently set to ${t.classes[profile.classLevel]?.title}`}
               </p>
             </div>
           </div>
@@ -157,7 +176,7 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Data Storage & Reset */}
-      <div className="wood-board-3d p-6 relative border-red-900/60">
+      <div className="wood-board-3d p-6 relative border-red-900/60 space-y-4">
         <div className="brass-rivet top-2 left-2" />
         <div className="brass-rivet top-2 right-2" />
 
@@ -167,26 +186,64 @@ export const SettingsView: React.FC = () => {
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-amber-100">Reset Local Progress</h3>
+              <h3 className="font-bold text-base text-amber-100">
+                {isUrdu ? 'محفوظ پیش رفت ری سیٹ کریں' : 'Reset Local Progress'}
+              </h3>
               <p className="text-xs text-amber-200/70 mt-0.5">
-                Clear all points, streaks, badges, unlocked levels, and stats saved on this browser
+                {isUrdu
+                  ? 'اس براؤزر میں محفوظ تمام پوائنٹس، اسٹریکس، بیجز اور کھلے لیولز صاف کریں'
+                  : 'Clear all points, streaks, badges, unlocked levels, and stats saved on this browser'}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              if (window.confirm('Are you certain you want to reset all game data? This cannot be undone.')) {
+          {!confirmReset && (
+            <button
+              onClick={() => {
                 sound.playClick();
-                resetProgress();
-              }
-            }}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-b from-red-600 to-red-800 border-2 border-red-400/50 shadow-md text-white font-black text-xs hover:from-red-500 hover:to-red-700 transition-all cursor-pointer flex-shrink-0"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset Data</span>
-          </button>
+                setConfirmReset(true);
+              }}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-b from-red-600 to-red-800 border-2 border-red-400/50 shadow-md text-white font-black text-xs hover:from-red-500 hover:to-red-700 transition-all cursor-pointer flex-shrink-0"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>{isUrdu ? 'ڈیٹا ری سیٹ کریں' : 'Reset Data'}</span>
+            </button>
+          )}
         </div>
+
+        {confirmReset && (
+          <div className="wood-board-inner p-3.5 border border-rose-500/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-rose-200 font-bold">
+              <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+              <span>
+                {isUrdu
+                  ? 'کیا آپ واقعی تمام گیم ڈیٹا ختم کرنا چاہتے ہیں؟ یہ عمل واپس نہیں ہو سکے گا۔'
+                  : 'Are you certain you want to reset all game data? This cannot be undone.'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setConfirmReset(false);
+                }}
+                className="wood-btn-3d px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                {t.common.cancel}
+              </button>
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  resetProgress();
+                  setConfirmReset(false);
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-600 border border-rose-400/50 text-white text-xs font-black cursor-pointer"
+              >
+                {isUrdu ? 'جی ہاں، ری سیٹ کریں' : 'Yes, Reset Everything'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

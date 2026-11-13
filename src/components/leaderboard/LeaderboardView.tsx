@@ -4,15 +4,12 @@ import { LeaderboardEntry } from '../../types';
 import { sound } from '../../services/sound';
 import {
   Crown,
-  Trophy,
   Medal,
   UserPlus,
-  Coins,
-  Sparkles,
 } from 'lucide-react';
 
 export const LeaderboardView: React.FC = () => {
-  const { profile, t, triggerConfetti } = useApp();
+  const { profile, t, isUrdu, triggerConfetti } = useApp();
 
   const [classmates, setClassmates] = useState<LeaderboardEntry[]>([
     { id: '1', name: 'Ayesha Khan', avatar: '🌟', classLevel: 'class4', points: 420, quizzesCompleted: 6 },
@@ -75,7 +72,7 @@ export const LeaderboardView: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/30 text-amber-300 text-xs font-bold mb-1.5">
               <Crown className="w-3.5 h-3.5 text-yellow-400" />
-              <span>Hall of Fame & Rankings</span>
+              <span>{isUrdu ? 'برتری کی فہرست اور درجہ بندی' : 'Hall of Fame & Rankings'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-amber-100 drop-shadow-md">
               {t.nav.leaderboard}
@@ -90,10 +87,10 @@ export const LeaderboardView: React.FC = () => {
               sound.playClick();
               setShowAddModal(true);
             }}
-            className="green-btn-3d px-4 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 cursor-pointer shadow-md"
+            className="green-btn-3d px-4 py-2 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 cursor-pointer shadow-md flex-shrink-0"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Add Player</span>
+            <span>{isUrdu ? 'کھلاڑی شامل کریں' : 'Add Player'}</span>
           </button>
         </div>
       </div>
@@ -101,20 +98,26 @@ export const LeaderboardView: React.FC = () => {
       {/* Add Competitor Modal */}
       {showAddModal && (
         <div className="wood-board-3d p-5 shadow-2xl space-y-3 border-2 border-yellow-500">
-          <h3 className="font-black text-base text-amber-100">Add Classmate / Sibling Profile</h3>
+          <h3 className="font-black text-base text-amber-100">
+            {isUrdu ? 'دوست یا ہم جماعت پروفائل شامل کریں' : 'Add Classmate / Sibling Profile'}
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-amber-300 mb-1">Player Name:</label>
+              <label className="block text-xs font-bold text-amber-300 mb-1">
+                {isUrdu ? 'کھلاڑی کا نام:' : 'Player Name:'}
+              </label>
               <input
                 type="text"
                 value={newPlayerName}
                 onChange={(e) => setNewPlayerName(e.target.value)}
-                placeholder="e.g. Fatima Ali"
+                placeholder={isUrdu ? 'مثال: فاطمہ علی' : 'e.g. Fatima Ali'}
                 className="w-full p-2.5 border border-amber-800 bg-amber-950 text-white rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-400"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-amber-300 mb-1">Starting Points:</label>
+              <label className="block text-xs font-bold text-amber-300 mb-1">
+                {isUrdu ? 'ابتدائی پوائنٹس:' : 'Starting Points:'}
+              </label>
               <input
                 type="number"
                 value={newPlayerPoints}
@@ -128,13 +131,13 @@ export const LeaderboardView: React.FC = () => {
               onClick={() => setShowAddModal(false)}
               className="wood-btn-3d px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
             >
-              Cancel
+              {t.common.cancel}
             </button>
             <button
               onClick={handleAddClassmate}
               className="green-btn-3d px-5 py-2 rounded-xl text-xs font-black cursor-pointer"
             >
-              Add to Board
+              {isUrdu ? 'بورڈ میں شامل کریں' : 'Add to Board'}
             </button>
           </div>
         </div>
@@ -143,10 +146,10 @@ export const LeaderboardView: React.FC = () => {
       {/* 3D Leaderboard Wooden Table */}
       <div className="wood-board-3d p-2 sm:p-3 shadow-xl">
         <div className="p-3 wood-board-inner mb-2 grid grid-cols-12 text-xs font-black text-amber-300 uppercase tracking-wider border border-amber-800">
-          <div className="col-span-2 text-center">Rank</div>
-          <div className="col-span-5">Player</div>
-          <div className="col-span-3 text-center">Class</div>
-          <div className="col-span-2 text-end pr-2">Points</div>
+          <div className="col-span-2 text-center">{isUrdu ? 'درجہ' : 'Rank'}</div>
+          <div className="col-span-5">{isUrdu ? 'کھلاڑی' : 'Player'}</div>
+          <div className="col-span-3 text-center">{isUrdu ? 'کلاس' : 'Class'}</div>
+          <div className="col-span-2 text-end ltr:pr-2 rtl:pl-2">{t.common.points}</div>
         </div>
 
         <div className="space-y-1.5">
@@ -176,18 +179,18 @@ export const LeaderboardView: React.FC = () => {
                       <span>{entry.name}</span>
                       {isUser && (
                         <span className="gold-badge text-[9px] px-1.5 py-0.2 rounded-full">
-                          YOU
+                          {isUrdu ? 'آپ' : 'YOU'}
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="col-span-3 text-center text-xs font-bold text-amber-200">
+                <div className="col-span-3 text-center text-xs font-bold text-amber-200 truncate">
                   {t.classes[entry.classLevel]?.title || entry.classLevel}
                 </div>
 
-                <div className="col-span-2 text-end pr-2 font-black text-yellow-300 text-sm sm:text-base drop-shadow-sm">
+                <div className="col-span-2 text-end ltr:pr-2 rtl:pl-2 font-black text-yellow-300 text-sm sm:text-base drop-shadow-sm">
                   {entry.points}
                 </div>
               </div>

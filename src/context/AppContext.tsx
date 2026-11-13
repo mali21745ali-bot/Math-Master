@@ -34,6 +34,14 @@ interface AppContextValue {
   setLanguage: (lang: Language) => void;
   updateProfile: (partial: Partial<StudentProfile>) => void;
   unlockNextLevel: (cls: ClassLevel, currentLvl: number, starsEarned: number, scoreEarned: number) => void;
+  recordLevelResult: (
+    cls: ClassLevel,
+    currentLvl: number,
+    correctCount: number,
+    totalCount: number,
+    starsEarned: number,
+    scoreEarned: number
+  ) => void;
   addPoints: (amount: number) => void;
   recordQuizResult: (correct: number, total: number) => void;
   recordPuzzleSolved: (moves: number, timeSec: number) => void;
@@ -146,11 +154,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [profile]);
 
-  // Synchronize document dir and lang attributes for full RTL/LTR switching
+  // Synchronize document and body dir/lang attributes for full RTL/LTR switching & Urdu font
   useEffect(() => {
-    const isUrdu = profile.language === 'ur';
-    document.documentElement.setAttribute('dir', isUrdu ? 'rtl' : 'ltr');
-    document.documentElement.setAttribute('lang', isUrdu ? 'ur' : 'en');
+    const urdu = profile.language === 'ur';
+    const dir = urdu ? 'rtl' : 'ltr';
+    document.documentElement.setAttribute('dir', dir);
+    document.documentElement.setAttribute('lang', urdu ? 'ur' : 'en');
+    document.body.setAttribute('dir', dir);
     sound.setEnabled(profile.soundEnabled);
   }, [profile.language, profile.soundEnabled]);
 
@@ -176,6 +186,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const calculatedLevel = Math.max(1, Math.floor(updated.points / 200) + 1);
       updated.level = calculatedLevel;
       return updated;
+    });
+  };
+
+  const recordLevelResult = (
+    cls: ClassLevel,
+    currentLvl: number,
+    correctCount: number,
+    totalCount: number,
+    starsEarned: number,
+    scoreEarned: number
+  ) => {
+    const accuracyPct = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
+    const passed = accuracyPct >= 70;
+
+    setProfile((prev) => {
+      const currentProgress = prev.classProgress[cls] || {
+        unlockedLevel: 1,
+        levelStars: {},
+        levelHighScores: {},
+        levelAccuracies: {},
+      };
+
+      const nextLevel = passed
+        ? Math.min(10, Math.max(currentProgress.unlockedLevel, currentLvl + 1))
+        : currentProgress.unlockedLevel;
+
+      const oldStars = currentProgress.levelStars[currentLvl] || 0;
+      const bestStars = Math.max(oldStars, starsEarned);
+      const oldHigh = currentProgress.levelHighScores[currentLvl] || 0;
+      const bestHigh = Math.max(oldHigh, scoreEarned);
+      const oldAcc = currentProgress.levelAccuracies?.[currentLvl] || 0;
+      const bestAcc = Math.max(oldAcc, accuracyPct);
+
+      const updatedProgress: Record<ClassLevel, ClassProgressData> = {
+        ...prev.classProgress,
+        [cls]: {
+          ...currentProgress,
+          unlockedLevel: nextLevel,
+          levelStars: {
+            ...currentProgress.levelStars,
+            [currentLvl]: bestStars,
+          },
+          levelHighScores: {
+            ...currentProgress.levelHighScores,
+            [currentLvl]: bestHigh,
+          },
+          levelAccuracies: {
+            ...(currentProgress.levelAccuracies || {}),
+            [currentLvl]: bestAcc,
+          },
+        },
+      };
+
+      const newPoints = prev.points + scoreEarned;
+      const calculatedLevel = Math.max(1, Math.floor(newPoints / 200) + 1);
+
+      const intermediate: StudentProfile = {
+        ...prev,
+        points: newPoints,
+        coins: prev.coins + Math.floor(scoreEarned / 5) + (passed ? starsEarned * 5 : 0),
+        level: calculatedLevel,
+        gamesPlayed: prev.gamesPlayed + 1,
+        totalQuestionsAnswered: prev.totalQuestionsAnswered + totalCount,
+        totalCorrectAnswers: prev.totalCorrectAnswers + correctCount,
+        classProgress: updatedProgress,
+      };
+      intermediate.unlockedBadges = checkBadges(intermediate);
+      return intermediate;
     });
   };
 
@@ -215,9 +293,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       const bonusPoints = starsEarned * 15 + scoreEarned;
+      const newPoints = prev.points + bonusPoints;
       const intermediate = {
         ...prev,
-        points: prev.points + bonusPoints,
+        points: newPoints,
+        level: Math.max(1, Math.floor(newPoints / 200) + 1),
         coins: prev.coins + starsEarned * 5,
         classProgress: updatedProgress,
       };
@@ -390,6 +470,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLanguage,
         updateProfile,
         unlockNextLevel,
+        recordLevelResult,
         addPoints,
         recordQuizResult,
         recordPuzzleSolved,

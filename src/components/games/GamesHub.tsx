@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { GameMode } from '../../types';
 import { sound } from '../../services/sound';
 import { GameRunner } from './GameRunner';
+import { MathGameScreen } from './MathGameScreen';
 import {
   Gamepad2,
   Plus,
@@ -30,7 +32,8 @@ export interface GameDefinition {
   gradient: string;
   category: 'arithmetic' | 'logic' | 'speed' | 'geometry';
   difficultyOptions: ('easy' | 'medium' | 'hard' | 'expert')[];
-  badge: string;
+  badgeEn: string;
+  badgeUr: string;
 }
 
 export const gamesRegistry: GameDefinition[] = [
@@ -41,7 +44,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-pink-500 to-rose-500',
     category: 'arithmetic',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'Popular',
+    badgeEn: 'Popular',
+    badgeUr: 'مقبول',
   },
   {
     id: 'subtraction',
@@ -50,7 +54,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-orange-500 to-amber-500',
     category: 'arithmetic',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'Classic',
+    badgeEn: 'Classic',
+    badgeUr: 'کلاسک',
   },
   {
     id: 'multiplication',
@@ -59,7 +64,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-emerald-500 to-teal-500',
     category: 'arithmetic',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'Essential',
+    badgeEn: 'Essential',
+    badgeUr: 'بنیادی',
   },
   {
     id: 'division',
@@ -68,7 +74,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-cyan-500 to-blue-500',
     category: 'arithmetic',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'Mastery',
+    badgeEn: 'Mastery',
+    badgeUr: 'مہارت',
   },
   {
     id: 'sequence',
@@ -77,7 +84,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-indigo-500 to-purple-500',
     category: 'logic',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'Patterns',
+    badgeEn: 'Patterns',
+    badgeUr: 'ترتیب',
   },
   {
     id: 'missingNumber',
@@ -86,7 +94,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-violet-500 to-purple-600',
     category: 'logic',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'Equations',
+    badgeEn: 'Equations',
+    badgeUr: 'مساوات',
   },
   {
     id: 'memory',
@@ -95,7 +104,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-purple-500 to-pink-600',
     category: 'logic',
     difficultyOptions: ['easy', 'medium', 'hard'],
-    badge: 'Memory',
+    badgeEn: 'Memory',
+    badgeUr: 'یادداشت',
   },
   {
     id: 'speedMath',
@@ -104,7 +114,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-amber-400 to-orange-500',
     category: 'speed',
     difficultyOptions: ['easy', 'medium', 'hard'],
-    badge: '60s Sprint',
+    badgeEn: '60s Sprint',
+    badgeUr: 'تیز دوڑ',
   },
   {
     id: 'mentalMath',
@@ -113,7 +124,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-fuchsia-500 to-rose-600',
     category: 'speed',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'No Pen/Paper',
+    badgeEn: 'No Pen/Paper',
+    badgeUr: 'ذہنی حساب',
   },
   {
     id: 'shapes',
@@ -122,7 +134,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-blue-500 to-indigo-600',
     category: 'geometry',
     difficultyOptions: ['easy', 'medium', 'hard'],
-    badge: 'Visual',
+    badgeEn: 'Visual',
+    badgeUr: 'اشکال',
   },
   {
     id: 'fractionPuzzle',
@@ -131,7 +144,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-teal-500 to-emerald-600',
     category: 'logic',
     difficultyOptions: ['easy', 'medium', 'hard'],
-    badge: 'Fractions',
+    badgeEn: 'Fractions',
+    badgeUr: 'کسور',
   },
   {
     id: 'equationSolver',
@@ -140,7 +154,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-indigo-600 to-blue-700',
     category: 'arithmetic',
     difficultyOptions: ['easy', 'medium', 'hard', 'expert'],
-    badge: 'Solve for x',
+    badgeEn: 'Algebra (x)',
+    badgeUr: 'الجبرا (x)',
   },
   {
     id: 'riddles',
@@ -149,7 +164,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-rose-500 to-red-600',
     category: 'logic',
     difficultyOptions: ['easy', 'medium', 'hard'],
-    badge: 'Brain Teasers',
+    badgeEn: 'Brain Teasers',
+    badgeUr: 'پہیلیاں',
   },
   {
     id: 'geometry',
@@ -158,7 +174,8 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-sky-500 to-cyan-600',
     category: 'geometry',
     difficultyOptions: ['easy', 'medium', 'hard'],
-    badge: 'Area/Perimeter',
+    badgeEn: 'Area/Perimeter',
+    badgeUr: 'رقبہ / احاطہ',
   },
   {
     id: 'timesTables',
@@ -167,12 +184,13 @@ export const gamesRegistry: GameDefinition[] = [
     gradient: 'from-emerald-500 to-green-600',
     category: 'arithmetic',
     difficultyOptions: ['easy', 'medium', 'hard'],
-    badge: 'Tables 1-20',
+    badgeEn: 'Tables 1-20',
+    badgeUr: 'پہاڑے 1-20',
   },
 ];
 
 export const GamesHub: React.FC = () => {
-  const { t, selectedGameId, setSelectedGameId } = useApp();
+  const { t, isUrdu, selectedGameId, setSelectedGameId, setSelectedGameMode, setActiveView } = useApp();
   const [activeFilter, setActiveFilter] = useState<'all' | 'arithmetic' | 'logic' | 'speed' | 'geometry'>('all');
   const [runningGameId, setRunningGameId] = useState<string | null>(selectedGameId);
 
@@ -194,6 +212,26 @@ export const GamesHub: React.FC = () => {
   };
 
   if (runningGameId) {
+    const mathOpMap: Record<string, GameMode> = {
+      addition: 'addition',
+      subtraction: 'subtraction',
+      multiplication: 'multiplication',
+      division: 'division',
+      sequence: 'sequence',
+      missingNumber: 'missing_number',
+      speedMath: 'mixed',
+      mentalMath: 'mental_math',
+      fractionPuzzle: 'fractions',
+      equationSolver: 'algebra',
+      timesTables: 'times_tables',
+    };
+
+    const targetOp = mathOpMap[runningGameId];
+    if (targetOp) {
+      return <MathGameScreen operation={targetOp} onBack={handleExitGame} />;
+    }
+
+    // memory, shapes, riddles, geometry use dedicated interactive GameRunner modes
     const activeDef = gamesRegistry.find((g) => g.id === runningGameId) || gamesRegistry[0];
     return <GameRunner game={activeDef} onExit={handleExitGame} />;
   }
@@ -211,15 +249,29 @@ export const GamesHub: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/30 text-amber-300 text-xs font-bold mb-1.5">
               <Gamepad2 className="w-3.5 h-3.5" />
-              <span>15 Interactive Mathematics Games</span>
+              <span>{isUrdu ? '15 انٹرایکٹو ریاضی گیمز' : '15 Interactive Mathematics Games'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-amber-100 drop-shadow-md">
               {t.nav.games}
             </h1>
             <p className="text-xs sm:text-sm text-amber-200/90 mt-0.5">
-              Strengthen arithmetic, logic, spatial intuition, and mental math reflexes through 3D gamified practice.
+              {isUrdu
+                ? 'تھری ڈی لکڑی کے گیمز کے ذریعے حساب، منطق، الجبرا، اور ذہنی رفتار کو مضبوط بنائیں۔'
+                : 'Strengthen arithmetic, algebra, logic, spatial intuition, and mental math reflexes through 3D gamified practice.'}
             </p>
           </div>
+
+          <button
+            onClick={() => {
+              sound.playClick();
+              setSelectedGameMode('addition');
+              setActiveView('puzzle');
+            }}
+            className="gold-btn-3d px-4 py-2 text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer flex-shrink-0"
+          >
+            <Grid className="w-4 h-4 text-amber-950" />
+            <span>{t.nav.puzzle}</span>
+          </button>
         </div>
       </div>
 
@@ -227,10 +279,10 @@ export const GamesHub: React.FC = () => {
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {[
           { id: 'all', label: t.common.all },
-          { id: 'arithmetic', label: 'Arithmetic Challenges' },
-          { id: 'speed', label: 'Speed & Mental Math' },
-          { id: 'logic', label: 'Logic & Puzzles' },
-          { id: 'geometry', label: 'Shapes & Geometry' },
+          { id: 'arithmetic', label: isUrdu ? 'حساب و الجبرا' : 'Arithmetic & Algebra' },
+          { id: 'speed', label: isUrdu ? 'رفتار اور ذہنی حساب' : 'Speed & Mental Math' },
+          { id: 'logic', label: isUrdu ? 'منطق اور پہیلیاں' : 'Logic & Puzzles' },
+          { id: 'geometry', label: isUrdu ? 'اشکال و جیومیٹری' : 'Shapes & Geometry' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -255,8 +307,8 @@ export const GamesHub: React.FC = () => {
           const Icon = game.icon;
           const info = t.games[game.id] || {
             title: game.id,
-            desc: 'Mathematics mini-game',
-            instructions: 'Play and learn!',
+            desc: isUrdu ? 'ریاضی کا منی گیم' : 'Mathematics mini-game',
+            instructions: isUrdu ? 'کھیلیں اور سیکھیں!' : 'Play and learn!',
           };
 
           return (
@@ -271,7 +323,7 @@ export const GamesHub: React.FC = () => {
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <span className="gold-badge text-[10px] px-2.5 py-0.5 rounded-full uppercase">
-                    {game.badge}
+                    {isUrdu ? game.badgeUr : game.badgeEn}
                   </span>
                 </div>
 
@@ -285,7 +337,7 @@ export const GamesHub: React.FC = () => {
 
               <div className="mt-4 pt-3 border-t border-amber-800/80 flex items-center justify-between">
                 <span className="text-[11px] font-bold text-amber-300/80">
-                  {game.difficultyOptions.length} Levels
+                  {isUrdu ? `${game.difficultyOptions.length} درجات` : `${game.difficultyOptions.length} Tiers`}
                 </span>
                 <span className="flex items-center gap-1 text-xs font-black text-yellow-300 group-hover:translate-x-1 rtl:group-hover:-translate-x-1 transition-transform">
                   <Play className="w-3.5 h-3.5 fill-yellow-300" />

@@ -27,7 +27,14 @@ export type GameMode =
   | 'multiplication'
   | 'division'
   | 'mixed'
-  | 'sliding_puzzle';
+  | 'sliding_puzzle'
+  | 'missing_number'
+  | 'sequence'
+  | 'times_tables'
+  | 'fractions'
+  | 'algebra'
+  | 'quiz'
+  | 'mental_math';
 
 export interface LevelInfo {
   level: LevelTier;
@@ -44,6 +51,7 @@ export interface ClassProgressData {
   unlockedLevel: number; // 1 to 10
   levelStars: Record<number, number>; // level (1..10) -> stars (0..3)
   levelHighScores: Record<number, number>;
+  levelAccuracies?: Record<number, number>;
 }
 
 export type QuestionType =
@@ -79,6 +87,8 @@ export interface QuizQuestion {
   matchPairsUr?: { left: string; right: string }[];
   hintEn?: string;
   hintUr?: string;
+  studentAnswer?: string;
+  isAnswerCorrect?: boolean;
 }
 
 export interface StudentProfile {
@@ -159,4 +169,5 @@ export type ViewType =
   | 'subtraction_game'
   | 'multiplication_game'
   | 'division_game'
-  | 'math_mix_game';
+  | 'math_mix_game'
+  | 'play_game';

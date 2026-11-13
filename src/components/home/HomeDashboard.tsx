@@ -1,38 +1,36 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { classesList } from '../../data/classesData';
 import { classLevelsConfig } from '../../data/levelsData';
 import { sound } from '../../services/sound';
 import {
-  Plus,
-  Minus,
-  X,
-  Divide,
   Sparkles,
   Grid,
-  Trophy,
   Flame,
   Star,
   Play,
   ArrowRight,
   GraduationCap,
   CalendarDays,
-  Award,
   Zap,
+  Target,
 } from 'lucide-react';
 
 export const HomeDashboard: React.FC = () => {
   const {
     profile,
     t,
+    isUrdu,
     setActiveView,
-    setSelectedClass,
     setSelectedGameMode,
+    setSelectedLevel,
     selectedClass,
   } = useApp();
 
-  const currentClassDef = classesList.find((c) => c.id === selectedClass) || classesList[3];
-  const classProg = profile.classProgress[selectedClass] || { unlockedLevel: 1, stars: {}, highScores: {} };
+  const classProg = (profile.classProgress && profile.classProgress[selectedClass]) || {
+    unlockedLevel: 1,
+    levelStars: {},
+    levelHighScores: {},
+  };
 
   const handleLaunchGame = (mode: 'addition' | 'subtraction' | 'multiplication' | 'division' | 'mixed') => {
     sound.playClick();
@@ -64,7 +62,6 @@ export const HomeDashboard: React.FC = () => {
       titleUr: 'جمع کا کھیل',
       descEn: 'Single to multi-digit addition & carries',
       descUr: 'ایک اور دو ہندسی جمع اور حاصل والے سوالات',
-      color: 'from-amber-500 to-orange-600',
     },
     {
       id: 'subtraction' as const,
@@ -73,7 +70,6 @@ export const HomeDashboard: React.FC = () => {
       titleUr: 'تفریق کا کھیل',
       descEn: 'Borrowing, large numbers & negative math',
       descUr: 'ادھار لینے اور منفی اعداد کی تفریق',
-      color: 'from-orange-500 to-amber-700',
     },
     {
       id: 'multiplication' as const,
@@ -82,7 +78,6 @@ export const HomeDashboard: React.FC = () => {
       titleUr: 'ضرب کا کھیل',
       descEn: 'Times tables sprint & algebraic factors',
       descUr: 'پہاڑوں کی مشق اور الجبرائی ضرب',
-      color: 'from-emerald-600 to-teal-700',
     },
     {
       id: 'division' as const,
@@ -91,7 +86,6 @@ export const HomeDashboard: React.FC = () => {
       titleUr: 'تقسیم کا کھیل',
       descEn: 'Quotients, remainders & clean fractions',
       descUr: 'خارج قسمت اور کسر کی تقسیم',
-      color: 'from-blue-600 to-indigo-700',
     },
   ];
 
@@ -106,7 +100,7 @@ export const HomeDashboard: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-start">
           <div className="flex items-center gap-4">
-            <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-400 to-yellow-600 flex items-center justify-center text-4xl shadow-md border-2 border-amber-300">
+            <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-3xl bg-gradient-to-tr from-amber-400 to-yellow-600 flex items-center justify-center text-4xl shadow-md border-2 border-amber-300 flex-shrink-0">
               {profile.avatar}
             </div>
 
@@ -119,7 +113,10 @@ export const HomeDashboard: React.FC = () => {
                 {profile.name}
               </h1>
               <p className="text-xs sm:text-sm text-amber-200/90 font-bold">
-                {t.classes[selectedClass]?.title} • Level {classProg.unlockedLevel}/10 Unlocked
+                {t.classes[selectedClass]?.title} •{' '}
+                {isUrdu
+                  ? `لیول ${classProg.unlockedLevel}/10 کھلا ہے`
+                  : `Level ${classProg.unlockedLevel}/10 Unlocked`}
               </p>
             </div>
           </div>
@@ -127,15 +124,19 @@ export const HomeDashboard: React.FC = () => {
           {/* Quick Stats Plaque */}
           <div className="flex items-center gap-2">
             <div className="wood-panel-3d p-3 min-w-[90px] text-center border border-amber-800">
-              <div className="text-[10px] uppercase font-bold text-amber-300">Total Points</div>
+              <div className="text-[10px] uppercase font-bold text-amber-300">
+                {t.common.points}
+              </div>
               <div className="text-xl font-black text-yellow-300 mt-0.5">{profile.points}</div>
             </div>
 
             <div className="wood-panel-3d p-3 min-w-[90px] text-center border border-amber-800">
-              <div className="text-[10px] uppercase font-bold text-amber-300">Streak</div>
+              <div className="text-[10px] uppercase font-bold text-amber-300">
+                {t.common.streak}
+              </div>
               <div className="text-xl font-black text-orange-400 mt-0.5 flex items-center justify-center gap-1">
                 <Flame className="w-4 h-4 fill-orange-400" />
-                <span>{profile.streakDays}d</span>
+                <span dir="ltr">{profile.streakDays}d</span>
               </div>
             </div>
           </div>
@@ -154,26 +155,28 @@ export const HomeDashboard: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-center sm:text-start">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 via-pink-600 to-amber-500 text-white flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 via-pink-600 to-amber-500 text-white flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform flex-shrink-0">
               <Zap className="w-8 h-8 text-yellow-200 fill-yellow-300" />
             </div>
 
             <div>
               <span className="gold-badge text-[10px] px-2.5 py-0.5 rounded-full uppercase">
-                Featured Game Mode
+                {isUrdu ? 'نمایاں گیم موڈ' : 'Featured Game Mode'}
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-amber-100 drop-shadow-md mt-1">
-                MATH MIX CHALLENGE
+                {isUrdu ? 'مکس ریاضی چیلنج' : 'MATH MIX CHALLENGE'}
               </h2>
               <p className="text-xs sm:text-sm text-amber-200/90 max-w-md">
-                Fast-paced mixture of Addition, Subtraction, Multiplication, and Division before the timer expires!
+                {isUrdu
+                  ? 'وقت ختم ہونے سے پہلے جمع، تفریق، ضرب اور تقسیم کے تیز رفتار سوالات حل کریں!'
+                  : 'Fast-paced mixture of Addition, Subtraction, Multiplication, and Division before the timer expires!'}
               </p>
             </div>
           </div>
 
           <button className="green-btn-3d px-5 py-3 rounded-2xl text-sm font-black flex items-center gap-2 cursor-pointer shadow-lg whitespace-nowrap">
             <Play className="w-4 h-4 fill-white" />
-            <span>Play Challenge</span>
+            <span>{isUrdu ? 'چیلنج کھیلیں' : 'Play Challenge'}</span>
           </button>
         </div>
       </div>
@@ -182,7 +185,7 @@ export const HomeDashboard: React.FC = () => {
       <div>
         <div className="flex items-center justify-between mb-3 px-1">
           <h2 className="text-lg sm:text-xl font-black text-amber-100 drop-shadow-md">
-            Mathematical Operation Games
+            {isUrdu ? 'ریاضی کے بنیادی کھیل' : 'Mathematical Operation Games'}
           </h2>
           <button
             onClick={() => {
@@ -191,7 +194,7 @@ export const HomeDashboard: React.FC = () => {
             }}
             className="text-xs font-black text-yellow-300 hover:text-white drop-shadow-xs flex items-center gap-1 cursor-pointer"
           >
-            <span>View All 10 Levels</span>
+            <span>{isUrdu ? 'تمام 10 لیولز دیکھیں' : 'View All 10 Levels'}</span>
             <ArrowRight className="w-3.5 h-3.5 rtl:rotate-180" />
           </button>
         </div>
@@ -204,28 +207,77 @@ export const HomeDashboard: React.FC = () => {
               className="wood-board-3d p-5 cursor-pointer hover:brightness-105 transition-all group flex items-center justify-between shadow-lg"
             >
               <div className="flex items-center gap-3.5">
-                <div className="w-14 h-14 rounded-2xl wood-tile-3d flex items-center justify-center text-3xl font-black group-hover:scale-105 transition-transform">
+                <div className="w-14 h-14 rounded-2xl wood-tile-3d flex items-center justify-center text-3xl font-black group-hover:scale-105 transition-transform flex-shrink-0">
                   <span className="math-symbol">{game.symbol}</span>
                 </div>
 
                 <div>
                   <h3 className="font-black text-base sm:text-lg text-amber-100 drop-shadow-sm">
-                    {profile.language === 'ur' ? game.titleUr : game.titleEn}
+                    {isUrdu ? game.titleUr : game.titleEn}
                   </h3>
                   <p className="text-xs text-amber-200/80 line-clamp-1">
-                    {profile.language === 'ur' ? game.descUr : game.descEn}
+                    {isUrdu ? game.descUr : game.descEn}
                   </p>
                   <span className="text-[10px] font-bold text-amber-300/80">
-                    Levels 1 to 10
+                    {isUrdu ? 'لیول 1 سے 10 تک' : 'Levels 1 to 10'}
                   </span>
                 </div>
               </div>
 
-              <div className="gold-btn-3d w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer group-hover:scale-110 transition-transform">
+              <div className="gold-btn-3d w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer group-hover:scale-110 transition-transform flex-shrink-0">
                 <Play className="w-4 h-4 fill-amber-950 text-amber-950" />
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Quick Actions: Daily Challenge & Quiz Competition */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div
+          onClick={() => {
+            sound.playClick();
+            setActiveView('daily_challenge');
+          }}
+          className="wood-board-3d p-4 sm:p-5 cursor-pointer hover:brightness-105 transition-all flex items-center justify-between shadow-lg"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl wood-tile-3d flex items-center justify-center flex-shrink-0">
+              <CalendarDays className="w-6 h-6 text-amber-200" />
+            </div>
+            <div>
+              <h3 className="font-black text-sm sm:text-base text-amber-100">
+                {t.nav.dailyChallenge}
+              </h3>
+              <p className="text-xs text-amber-200/80">
+                {isUrdu ? 'روزانہ +100 بونس پوائنٹس جیتیں' : 'Earn +100 daily bonus points'}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-yellow-300 rtl:rotate-180 flex-shrink-0" />
+        </div>
+
+        <div
+          onClick={() => {
+            sound.playClick();
+            setActiveView('quiz');
+          }}
+          className="wood-board-3d p-4 sm:p-5 cursor-pointer hover:brightness-105 transition-all flex items-center justify-between shadow-lg"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl wood-tile-3d flex items-center justify-center flex-shrink-0">
+              <Target className="w-6 h-6 text-amber-200" />
+            </div>
+            <div>
+              <h3 className="font-black text-sm sm:text-base text-amber-100">
+                {t.nav.quiz}
+              </h3>
+              <p className="text-xs text-amber-200/80">
+                {isUrdu ? 'کلاس اور مشکل کے مطابق ٹیسٹ دیں' : 'Timed exam with hints & review'}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-yellow-300 rtl:rotate-180 flex-shrink-0" />
         </div>
       </div>
 
@@ -237,27 +289,29 @@ export const HomeDashboard: React.FC = () => {
         }}
         className="wood-board-3d p-5 sm:p-6 cursor-pointer hover:brightness-105 transition-all group shadow-xl"
       >
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl wood-tile-3d flex items-center justify-center text-2xl font-black group-hover:scale-105 transition-transform">
+            <div className="w-14 h-14 rounded-2xl wood-tile-3d flex items-center justify-center text-2xl font-black group-hover:scale-105 transition-transform flex-shrink-0">
               <Grid className="w-7 h-7 text-white" />
             </div>
 
             <div>
               <span className="gold-badge text-[10px] px-2 py-0.5 rounded-full">
-                Classic 3D Logic Game
+                {isUrdu ? 'کلاسک 3D لاجک گیم' : 'Classic 3D Logic Game'}
               </span>
               <h3 className="text-lg sm:text-xl font-black text-amber-100 drop-shadow-md mt-0.5">
-                3D Wooden Sliding Puzzle
+                {isUrdu ? '3D لکڑی کی سلائیڈنگ پزل' : '3D Wooden Sliding Puzzle'}
               </h3>
               <p className="text-xs text-amber-200/80">
-                Slide wooden tiles into ascending order on 3×3, 4×4, and 5×5 boards.
+                {isUrdu
+                  ? '3×3، 4×4 اور 5×5 بورڈ پر نمبروں کو درست ترتیب میں لائیں۔'
+                  : 'Slide wooden tiles into ascending order on 3×3, 4×4, and 5×5 boards.'}
               </p>
             </div>
           </div>
 
-          <button className="wood-btn-3d px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center gap-1.5 cursor-pointer shadow-md">
-            <span>Play Puzzle</span>
+          <button className="wood-btn-3d px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md flex-shrink-0">
+            <span>{isUrdu ? 'پزل کھیلیں' : 'Play Puzzle'}</span>
             <ArrowRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
@@ -265,14 +319,19 @@ export const HomeDashboard: React.FC = () => {
 
       {/* Class Level Map & Quick Progression Strip */}
       <div className="wood-board-3d p-5 shadow-lg space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="font-black text-base text-amber-100 drop-shadow-sm flex items-center gap-2">
               <GraduationCap className="w-5 h-5 text-amber-400" />
-              Class Progression: {t.classes[selectedClass]?.title}
+              <span>
+                {isUrdu ? 'کلاس کی پیش رفت:' : 'Class Progression:'}{' '}
+                {t.classes[selectedClass]?.title}
+              </span>
             </h3>
             <p className="text-xs text-amber-300/80">
-              Unlock Levels 1 through 10 to conquer this class.
+              {isUrdu
+                ? 'اس کلاس میں مہارت حاصل کرنے کے لیے لیول 1 سے 10 تک فتح کریں۔'
+                : 'Unlock Levels 1 through 10 to conquer this class.'}
             </p>
           </div>
 
@@ -283,28 +342,29 @@ export const HomeDashboard: React.FC = () => {
             }}
             className="wood-btn-3d px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer"
           >
-            Change Class
+            {isUrdu ? 'کلاس تبدیل کریں' : 'Change Class'}
           </button>
         </div>
 
         {/* 10 Level Nodes */}
-        <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 pt-1">
+        <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 pt-1" dir="ltr">
           {classLevelsConfig.map((lvl) => {
             const isUnlocked = lvl.level <= classProg.unlockedLevel;
-            const stars = classProg.stars[lvl.level] || 0;
+            const stars = (classProg.levelStars && classProg.levelStars[lvl.level]) || 0;
             return (
               <button
                 key={lvl.level}
                 onClick={() => {
                   if (isUnlocked) {
                     sound.playClick();
-                    setActiveView('level_select');
+                    setSelectedLevel(lvl.level);
+                    setActiveView('play_game');
                   }
                 }}
                 disabled={!isUnlocked}
-                className={`p-2 rounded-xl text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
+                className={`p-2 rounded-xl text-center flex flex-col items-center justify-center transition-all ${
                   isUnlocked
-                    ? 'wood-tile-3d hover:scale-105'
+                    ? 'wood-tile-3d hover:scale-105 cursor-pointer'
                     : 'bg-black/40 border border-amber-950 opacity-50 cursor-not-allowed'
                 }`}
               >

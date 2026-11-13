@@ -32,7 +32,7 @@ import {
 import { sound } from './services/sound';
 
 const MainLayout: React.FC = () => {
-  const { activeView, setActiveView, selectedGameMode } = useApp();
+  const { activeView, setActiveView, selectedGameMode, isUrdu } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const renderActiveView = () => {
@@ -46,26 +46,16 @@ const MainLayout: React.FC = () => {
           <LevelSelectScreen
             onBack={() => setActiveView('home')}
             onStartLevel={() => {
-              switch (selectedGameMode) {
-                case 'subtraction':
-                  setActiveView('subtraction_game');
-                  break;
-                case 'multiplication':
-                  setActiveView('multiplication_game');
-                  break;
-                case 'division':
-                  setActiveView('division_game');
-                  break;
-                case 'mixed':
-                  setActiveView('math_mix_game');
-                  break;
-                default:
-                  setActiveView('addition_game');
-                  break;
+              if (selectedGameMode === 'sliding_puzzle') {
+                setActiveView('puzzle');
+              } else {
+                setActiveView('play_game');
               }
             }}
           />
         );
+      case 'play_game':
+        return <MathGameScreen operation={selectedGameMode} onBack={() => setActiveView('level_select')} />;
       case 'addition_game':
         return <MathGameScreen operation="addition" onBack={() => setActiveView('home')} />;
       case 'subtraction_game':
@@ -102,12 +92,15 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="desert-sky-bg desert-dunes-overlay min-h-screen flex flex-col font-sans transition-colors">
+    <div className="desert-sky-bg min-h-screen flex flex-col font-sans transition-colors relative">
+      {/* Decorative fixed dunes backdrop */}
+      <div className="desert-dunes-overlay" aria-hidden="true" />
+
       {/* Top 3D Wooden Header */}
       <Header mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
 
       {/* Main Container: 3D Wooden Sidebar + Content Area */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto px-2 sm:px-4">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto px-2 sm:px-4 relative z-10">
         <Sidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
 
         <main className="flex-1 py-4 sm:py-6 px-1 sm:px-4 overflow-x-hidden min-w-0">
@@ -118,11 +111,11 @@ const MainLayout: React.FC = () => {
       {/* Mobile Bottom Quick Bar in 3D Wood */}
       <nav className="lg:hidden sticky bottom-0 z-30 wood-header-bar border-t-4 border-amber-950 px-2 py-1.5 flex items-center justify-around shadow-2xl">
         {[
-          { id: 'home', label: 'Home', icon: Home },
-          { id: 'level_select', label: 'Levels', icon: Zap },
-          { id: 'puzzle', label: 'Puzzle', icon: Grid },
-          { id: 'select_class', label: 'Class', icon: GraduationCap },
-          { id: 'games', label: 'Games', icon: Gamepad2 },
+          { id: 'home', label: isUrdu ? 'ہوم' : 'Home', icon: Home },
+          { id: 'level_select', label: isUrdu ? 'لیولز' : 'Levels', icon: Zap },
+          { id: 'puzzle', label: isUrdu ? 'پزل' : 'Puzzle', icon: Grid },
+          { id: 'select_class', label: isUrdu ? 'کلاس' : 'Class', icon: GraduationCap },
+          { id: 'games', label: isUrdu ? 'کھیل' : 'Games', icon: Gamepad2 },
         ].map((item) => {
           const Icon = item.icon;
           const isActive = activeView === item.id;

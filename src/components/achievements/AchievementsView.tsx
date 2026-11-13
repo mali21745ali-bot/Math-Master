@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 export const AchievementsView: React.FC = () => {
-  const { profile, t } = useApp();
+  const { profile, t, isUrdu } = useApp();
 
   const getBadgeIcon = (iconName: string) => {
     switch (iconName) {
@@ -59,18 +59,24 @@ export const AchievementsView: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/30 text-amber-300 text-xs font-bold mb-1.5">
               <Trophy className="w-3.5 h-3.5 text-yellow-400" />
-              <span>Honors & Milestones</span>
+              <span>{isUrdu ? 'تمغے اور اعزازات' : 'Honors & Milestones'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-amber-100 drop-shadow-md">
               {t.nav.achievements}
             </h1>
             <p className="text-xs sm:text-sm text-amber-200/90 mt-0.5">
-              Unlock prestigious 3D wooden milestone badges as you master mathematics!
+              {isUrdu
+                ? 'ریاضی میں مہارت حاصل کرتے جائیں اور شاندار 3D تمغے جیتیں!'
+                : 'Unlock prestigious 3D wooden milestone badges as you master mathematics!'}
             </p>
           </div>
 
-          <div className="gold-btn-3d px-4 py-2 rounded-xl text-xs sm:text-sm font-black shadow-md">
-            <span>{unlockedCount} of {achievementsList.length} Unlocked</span>
+          <div className="gold-btn-3d px-4 py-2 rounded-xl text-xs sm:text-sm font-black shadow-md flex-shrink-0">
+            <span>
+              {isUrdu
+                ? `${achievementsList.length} میں سے ${unlockedCount} حاصل`
+                : `${unlockedCount} of ${achievementsList.length} Unlocked`}
+            </span>
           </div>
         </div>
       </div>
@@ -82,8 +88,8 @@ export const AchievementsView: React.FC = () => {
           const Icon = getBadgeIcon(badge.icon);
           const progress = getProgress(badge);
 
-          const title = profile.language === 'ur' ? badge.titleUr : badge.titleEn;
-          const desc = profile.language === 'ur' ? badge.descriptionUr : badge.descriptionEn;
+          const title = isUrdu ? badge.titleUr : badge.titleEn;
+          const desc = isUrdu ? badge.descriptionUr : badge.descriptionEn;
 
           return (
             <div
@@ -104,11 +110,13 @@ export const AchievementsView: React.FC = () => {
 
                   {isUnlocked ? (
                     <span className="gold-badge text-[10px] px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-amber-950" /> Unlocked
+                      <CheckCircle2 className="w-3 h-3 text-amber-950" />
+                      <span>{isUrdu ? 'حاصل شدہ' : 'Unlocked'}</span>
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/40 text-amber-400/80 flex items-center gap-1 border border-amber-900">
-                      <Lock className="w-3 h-3" /> Locked
+                      <Lock className="w-3 h-3" />
+                      <span>{isUrdu ? 'مقفل' : 'Locked'}</span>
                     </span>
                   )}
                 </div>
@@ -120,8 +128,8 @@ export const AchievementsView: React.FC = () => {
               {/* Progress Bar */}
               <div className="mt-4 pt-3 border-t border-amber-800 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] font-bold text-amber-300">
-                  <span>Progress</span>
-                  <span>{isUnlocked ? '100%' : `${progress.currentVal} / ${progress.target}`}</span>
+                  <span>{isUrdu ? 'پیش رفت' : 'Progress'}</span>
+                  <span dir="ltr">{isUnlocked ? '100%' : `${progress.currentVal} / ${progress.target}`}</span>
                 </div>
                 <div className="w-full h-2.5 bg-black/40 rounded-full overflow-hidden border border-amber-950">
                   <div

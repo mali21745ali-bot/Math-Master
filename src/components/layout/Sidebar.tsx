@@ -48,7 +48,7 @@ const navItems: NavItemDef[] = [
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ mobileMenuOpen, setMobileMenuOpen }) => {
-  const { activeView, setActiveView, t, profile, selectedClass } = useApp();
+  const { activeView, setActiveView, t, profile, selectedClass, isUrdu } = useApp();
 
   const handleNavClick = (viewId: ViewType) => {
     sound.playClick();
@@ -68,8 +68,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileMenuOpen, setMobileMenuO
 
       {/* 3D Wooden Sidebar container */}
       <aside
-        className={`fixed top-18 bottom-0 z-40 w-72 wood-panel-3d rounded-none lg:rounded-2xl lg:my-4 border-r-4 lg:border-4 border-amber-950 p-4 overflow-y-auto transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 select-none shadow-2xl ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        className={`fixed top-18 bottom-0 ltr:left-0 rtl:right-0 z-40 w-72 wood-panel-3d rounded-none lg:rounded-2xl lg:my-4 border-r-4 lg:border-4 border-amber-950 p-4 overflow-y-auto transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 select-none shadow-2xl ${
+          mobileMenuOpen
+            ? 'translate-x-0'
+            : 'ltr:-translate-x-full rtl:translate-x-full lg:translate-x-0 lg:rtl:translate-x-0'
         }`}
       >
         {/* Student Mini Wooden Plaque */}
@@ -84,9 +86,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileMenuOpen, setMobileMenuO
                 {t.classes[selectedClass]?.title || selectedClass}
               </p>
               <div className="mt-1 flex items-center gap-2 text-[11px] text-amber-200/90 font-bold">
-                <span>{profile.points} pts</span>
+                <span>{profile.points} {isUrdu ? 'پوائنٹس' : 'pts'}</span>
                 <span>•</span>
-                <span>Lvl {profile.level}</span>
+                <span>{t.common.level} {profile.level}</span>
               </div>
             </div>
           </div>

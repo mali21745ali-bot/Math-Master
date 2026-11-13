@@ -10,9 +10,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  HelpCircle,
   Sparkles,
-  Zap,
 } from 'lucide-react';
 
 interface GameRunnerProps {
@@ -21,14 +19,40 @@ interface GameRunnerProps {
 }
 
 interface MiniQuestion {
-  prompt: string;
+  promptEn: string;
+  promptUr: string;
   options: string[];
   correct: string;
-  explanation: string;
+  explanationEn: string;
+  explanationUr: string;
+  isMathOnly?: boolean;
 }
 
+const buildUnique = (correct: string, candidates: string[]): string[] => {
+  const seen = new Set<string>([correct]);
+  const out = [correct];
+  for (const c of candidates) {
+    if (!seen.has(c)) {
+      seen.add(c);
+      out.push(c);
+    }
+    if (out.length === 4) break;
+  }
+  let bump = 1;
+  while (out.length < 4) {
+    const val = (Number(correct) || 10) + bump;
+    const s = val.toString();
+    if (!seen.has(s)) {
+      seen.add(s);
+      out.push(s);
+    }
+    bump++;
+  }
+  return [...out].sort(() => Math.random() - 0.5);
+};
+
 export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
-  const { t, recordGamePlayed, addPoints, triggerConfetti } = useApp();
+  const { t, isUrdu, recordGamePlayed, addPoints, triggerConfetti } = useApp();
 
   const [gameState, setGameState] = useState<'intro' | 'playing' | 'ended'>('intro');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
@@ -46,212 +70,149 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
   // For times table grid
   const [selectedTimesTable, setSelectedTimesTable] = useState(7);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scoreRef = useRef(0);
+  const hasEndedRef = useRef(false);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
 
   const gameInfo = t.games[game.id] || {
     title: game.id,
-    desc: 'Mathematics mini-game',
-    instructions: 'Solve the problems accurately to score points.',
+    desc: isUrdu ? 'ریاضی کا منی گیم' : 'Mathematics mini-game',
+    instructions: isUrdu ? 'پوائنٹس حاصل کرنے کے لیے درست جواب دیں۔' : 'Solve the problems accurately to score points.',
   };
 
-  // Helper to shuffle
   const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
 
-  // Generate question tailored to game id and difficulty
   const generateGameQuestion = (): MiniQuestion => {
     const diffMultiplier = difficulty === 'easy' ? 1 : difficulty === 'medium' ? 2 : difficulty === 'hard' ? 4 : 8;
 
     switch (game.id) {
-      case 'addition': {
-        const a = Math.floor(Math.random() * (15 * diffMultiplier)) + 3;
-        const b = Math.floor(Math.random() * (15 * diffMultiplier)) + 3;
-        const ans = a + b;
-        const opts = shuffle([ans.toString(), (ans + 2).toString(), (ans - 3).toString(), (ans + 10).toString()]);
-        return {
-          prompt: `${a} + ${b} = ?`,
-          options: opts,
-          correct: ans.toString(),
-          explanation: `${a} + ${b} = ${ans}`,
-        };
-      }
-
-      case 'subtraction': {
-        const a = Math.floor(Math.random() * (20 * diffMultiplier)) + 10;
-        const b = Math.floor(Math.random() * a) + 1;
-        const ans = a - b;
-        const opts = shuffle([ans.toString(), (ans + 1).toString(), (ans - 2).toString(), (ans + 5).toString()]);
-        return {
-          prompt: `${a} - ${b} = ?`,
-          options: opts,
-          correct: ans.toString(),
-          explanation: `${a} - ${b} = ${ans}`,
-        };
-      }
-
-      case 'multiplication': {
-        const a = Math.floor(Math.random() * (6 * diffMultiplier)) + 2;
-        const b = Math.floor(Math.random() * 9) + 2;
-        const ans = a * b;
-        const opts = shuffle([ans.toString(), (ans + a).toString(), (ans - b).toString(), (ans + 4).toString()]);
-        return {
-          prompt: `${a} × ${b} = ?`,
-          options: opts,
-          correct: ans.toString(),
-          explanation: `${a} × ${b} = ${ans}`,
-        };
-      }
-
-      case 'division': {
-        const b = Math.floor(Math.random() * (4 * diffMultiplier)) + 2;
-        const ans = Math.floor(Math.random() * 9) + 2;
-        const a = b * ans;
-        const opts = shuffle([ans.toString(), (ans + 1).toString(), (ans - 1).toString(), (ans + 3).toString()]);
-        return {
-          prompt: `${a} ÷ ${b} = ?`,
-          options: opts,
-          correct: ans.toString(),
-          explanation: `${a} ÷ ${b} = ${ans}`,
-        };
-      }
-
-      case 'sequence': {
-        const step = Math.floor(Math.random() * (3 * diffMultiplier)) + 2;
-        const start = Math.floor(Math.random() * 20) + 1;
-        const seq = [start, start + step, start + step * 2, start + step * 3];
-        const nextNum = start + step * 4;
-        const opts = shuffle([nextNum.toString(), (nextNum + step).toString(), (nextNum - 1).toString(), (nextNum + 2).toString()]);
-        return {
-          prompt: `Find next number: ${seq.join(', ')}, ?`,
-          options: opts,
-          correct: nextNum.toString(),
-          explanation: `The sequence increases by +${step} each time. Next is ${nextNum}.`,
-        };
-      }
-
-      case 'missingNumber': {
-        const a = Math.floor(Math.random() * (15 * diffMultiplier)) + 5;
-        const hidden = Math.floor(Math.random() * 15) + 3;
-        const total = a + hidden;
-        const opts = shuffle([hidden.toString(), (hidden + 1).toString(), (hidden - 2).toString(), (hidden + 4).toString()]);
-        return {
-          prompt: `${a} + ❓ = ${total}`,
-          options: opts,
-          correct: hidden.toString(),
-          explanation: `${total} - ${a} = ${hidden}`,
-        };
-      }
-
-      case 'speedMath': {
-        const ops = ['+', '-', '×'];
-        const op = ops[Math.floor(Math.random() * ops.length)];
-        let a = Math.floor(Math.random() * 15) + 2;
-        let b = Math.floor(Math.random() * 10) + 2;
-        let ans = 0;
-        if (op === '+') ans = a + b;
-        else if (op === '-') {
-          if (b > a) [a, b] = [b, a];
-          ans = a - b;
-        } else {
-          a = Math.min(a, 9);
-          b = Math.min(b, 9);
-          ans = a * b;
-        }
-        const opts = shuffle([ans.toString(), (ans + 1).toString(), (ans - 2).toString(), (ans + 3).toString()]);
-        return {
-          prompt: `${a} ${op} ${b} = ?`,
-          options: opts,
-          correct: ans.toString(),
-          explanation: `${a} ${op} ${b} = ${ans}`,
-        };
-      }
-
-      case 'mentalMath': {
-        const n1 = Math.floor(Math.random() * 10) + 5;
-        const n2 = Math.floor(Math.random() * 8) + 2;
-        const n3 = Math.floor(Math.random() * 5) + 1;
-        const ans = n1 + n2 - n3;
-        const opts = shuffle([ans.toString(), (ans + 2).toString(), (ans - 2).toString(), (ans + 5).toString()]);
-        return {
-          prompt: `Think: Start with ${n1}, add ${n2}, then subtract ${n3}`,
-          options: opts,
-          correct: ans.toString(),
-          explanation: `${n1} + ${n2} = ${n1 + n2}, minus ${n3} = ${ans}`,
-        };
-      }
-
       case 'shapes': {
         const shapeBank = [
-          { name: 'Hexagon', desc: 'Polygon with exactly 6 sides and 6 angles' },
-          { name: 'Pentagon', desc: 'Polygon with exactly 5 straight sides' },
-          { name: 'Right Triangle', desc: 'Triangle containing one 90-degree angle' },
-          { name: 'Equilateral Triangle', desc: 'Triangle where all 3 sides are equal' },
-          { name: 'Trapezoid', desc: 'Quadrilateral with only one pair of parallel sides' },
+          {
+            nameEn: 'Hexagon',
+            nameUr: 'مسدس (Hexagon)',
+            descEn: 'Polygon with exactly 6 sides and 6 angles',
+            descUr: '6 اضلاع اور 6 زاویوں والی بند شکل',
+          },
+          {
+            nameEn: 'Pentagon',
+            nameUr: 'مخمس (Pentagon)',
+            descEn: 'Polygon with exactly 5 straight sides',
+            descUr: 'بالکل 5 سیدھے اضلاع والی شکل',
+          },
+          {
+            nameEn: 'Right Triangle',
+            nameUr: 'قائمہ مثلث',
+            descEn: 'Triangle containing one 90-degree angle',
+            descUr: 'ایسی مثلث جس میں ایک 90 ڈگری کا زاویہ ہو',
+          },
+          {
+            nameEn: 'Equilateral Triangle',
+            nameUr: 'متساوی الاضلاع مثلث',
+            descEn: 'Triangle where all 3 sides are equal',
+            descUr: 'ایسی مثلث جس کے تینوں اضلاع برابر ہوں',
+          },
+          {
+            nameEn: 'Trapezoid',
+            nameUr: 'ذوزنقہ (Trapezoid)',
+            descEn: 'Quadrilateral with one pair of parallel sides',
+            descUr: 'چوکون جس کے صرف دو مخالف اضلاع متوازی ہوں',
+          },
+          {
+            nameEn: 'Octagon',
+            nameUr: 'مثمن (Octagon)',
+            descEn: 'Polygon with 8 straight sides',
+            descUr: '8 سیدھے اضلاع والی بند شکل',
+          },
         ];
         const pickShape = shapeBank[Math.floor(Math.random() * shapeBank.length)];
-        const opts = shuffle([pickShape.name, 'Decagon', 'Rhombus', 'Octagon']);
+        const pool = shapeBank.filter((s) => s.nameEn !== pickShape.nameEn);
+        const pickedWrong = shuffle(pool).slice(0, 3);
+        const ans = isUrdu ? pickShape.nameUr : pickShape.nameEn;
+        const opts = shuffle([ans, ...pickedWrong.map((w) => (isUrdu ? w.nameUr : w.nameEn))]);
         return {
-          prompt: `Identify the shape: "${pickShape.desc}"`,
+          promptEn: `Identify the shape: "${pickShape.descEn}"`,
+          promptUr: `شکل پہچانیں: "${pickShape.descUr}"`,
           options: opts,
-          correct: pickShape.name,
-          explanation: `${pickShape.name}: ${pickShape.desc}`,
-        };
-      }
-
-      case 'fractionPuzzle': {
-        const fracList = [
-          { q: 'Which fraction is equivalent to 1/2?', a: '2/4', wrong: ['2/5', '1/3', '3/8'] },
-          { q: 'Which fraction is equivalent to 3/4?', a: '6/8', wrong: ['4/6', '3/5', '5/8'] },
-          { q: 'Simplify the fraction 4/12:', a: '1/3', wrong: ['1/4', '2/5', '1/6'] },
-          { q: 'Which is larger: 3/5 or 2/5?', a: '3/5', wrong: ['2/5', 'They are equal', 'Neither'] },
-        ];
-        const item = fracList[Math.floor(Math.random() * fracList.length)];
-        return {
-          prompt: item.q,
-          options: shuffle([item.a, ...item.wrong]),
-          correct: item.a,
-          explanation: `Correct equivalence is ${item.a}.`,
-        };
-      }
-
-      case 'equationSolver': {
-        const a = Math.floor(Math.random() * 4) + 2;
-        const x = Math.floor(Math.random() * 8) + 2;
-        const b = Math.floor(Math.random() * 10) + 1;
-        const c = a * x + b;
-        const opts = shuffle([x.toString(), (x + 1).toString(), (x - 1).toString(), (x * 2).toString()]);
-        return {
-          prompt: `Solve for x: ${a}x + ${b} = ${c}`,
-          options: opts,
-          correct: x.toString(),
-          explanation: `${a}x = ${c - b} ⇒ x = ${x}`,
+          correct: ans,
+          explanationEn: `${pickShape.nameEn}: ${pickShape.descEn}`,
+          explanationUr: `${pickShape.nameUr}: ${pickShape.descUr}`,
         };
       }
 
       case 'riddles': {
         const riddles = [
-          { q: 'I am an odd number. Take away one letter and I become even. What number am I?', a: 'Seven', wrong: ['Nine', 'Eleven', 'Five'], exp: 'SEVEN minus "S" is EVEN!' },
-          { q: 'How many times can you subtract 5 from 25?', a: '1 time', wrong: ['5 times', '4 times', 'Unlimited'], exp: 'Only once! After that, you are subtracting 5 from 20.' },
-          { q: 'Which number does NOT have its own Roman numeral?', a: 'Zero (0)', wrong: ['One', 'Ten', 'Fifty'], exp: 'Romans had no symbol for zero.' },
+          {
+            qEn: 'I am an odd number. Take away the first letter and I become even. What number am I?',
+            qUr: 'میں ایک طاق عدد ہوں، اگر میرا پہلا انگریزی حرف (S) ہٹا دیں تو میں "even" بن جاتا ہوں۔ میں کون ہوں؟',
+            aEn: 'Seven',
+            aUr: 'Seven (7)',
+            wEn: ['Nine', 'Eleven', 'Five'],
+            wUr: ['Nine (9)', 'Eleven (11)', 'Five (5)'],
+            eEn: 'SEVEN minus "S" becomes EVEN!',
+            eUr: 'SEVEN سے "S" ہٹانے پر EVEN بنتا ہے!',
+          },
+          {
+            qEn: 'How many times can you subtract 5 from 25?',
+            qUr: 'آپ 25 میں سے 5 کتنی بار تفریق کر سکتے ہیں (پھر وہ 25 نہیں رہے گا)؟',
+            aEn: '1 time',
+            aUr: 'صرف 1 بار',
+            wEn: ['5 times', '4 times', 'Unlimited'],
+            wUr: ['5 بار', '4 بار', 'لامحدود'],
+            eEn: 'Only once! After that, you are subtracting 5 from 20.',
+            eUr: 'صرف ایک بار! اس کے بعد آپ 20 میں سے 5 تفریق کر رہے ہوں گے۔',
+          },
+          {
+            qEn: 'Which number does NOT have a Roman numeral symbol?',
+            qUr: 'کون سے عدد کی رومن گنتی میں کوئی علامت نہیں ہے؟',
+            aEn: 'Zero (0)',
+            aUr: 'صفر (0)',
+            wEn: ['One (1)', 'Ten (10)', 'Fifty (50)'],
+            wUr: ['ایک (1)', 'دس (10)', 'پچاس (50)'],
+            eEn: 'Roman numerals have no symbol for zero.',
+            eUr: 'رومن اعداد میں صفر کے لیے کوئی علامت موجود نہیں ہے۔',
+          },
+          {
+            qEn: 'What is half of 2 plus 2?',
+            qUr: '2 کا آدھا جمع 2 کتنا ہوتا ہے؟',
+            aEn: '3',
+            aUr: '3',
+            wEn: ['2', '4', '1'],
+            wUr: ['2', '4', '1'],
+            eEn: 'Half of 2 is 1, and 1 + 2 = 3.',
+            eUr: '2 کا آدھا 1 ہے، اور 1 + 2 = 3۔',
+          },
         ];
         const item = riddles[Math.floor(Math.random() * riddles.length)];
+        const correct = isUrdu ? item.aUr : item.aEn;
+        const wrong = isUrdu ? item.wUr : item.wEn;
         return {
-          prompt: item.q,
-          options: shuffle([item.a, ...item.wrong]),
-          correct: item.a,
-          explanation: item.exp,
+          promptEn: item.qEn,
+          promptUr: item.qUr,
+          options: shuffle([correct, ...wrong]),
+          correct,
+          explanationEn: item.eEn,
+          explanationUr: item.eUr,
         };
       }
 
       case 'geometry': {
-        const s = Math.floor(Math.random() * 8) + 4;
+        const scale = Math.min(3, diffMultiplier);
+        const s = Math.floor(Math.random() * (6 * scale)) + 3;
         const isArea = Math.random() > 0.5;
         const val = isArea ? s * s : 4 * s;
-        const opts = shuffle([val.toString(), (val + 4).toString(), (val - 3).toString(), (s * 2).toString()]);
+        const opts = buildUnique(val.toString(), [(val + 4).toString(), Math.max(2, val - 3).toString(), (s * 2 + 1).toString()]);
         return {
-          prompt: isArea ? `Area of a square with side ${s} cm:` : `Perimeter of a square with side ${s} cm:`,
+          promptEn: isArea ? `Area of a square with side ${s} cm:` : `Perimeter of a square with side ${s} cm:`,
+          promptUr: isArea ? `${s} سینٹی میٹر ضلع والے مربع کا رقبہ (Area):` : `${s} سینٹی میٹر ضلع والے مربع کا احاطہ (Perimeter):`,
           options: opts,
           correct: val.toString(),
-          explanation: isArea ? `Area = side² = ${s} × ${s} = ${val} cm²` : `Perimeter = 4 × side = 4 × ${s} = ${val} cm`,
+          explanationEn: isArea ? `Area = side² = ${s} × ${s} = ${val} cm²` : `Perimeter = 4 × side = 4 × ${s} = ${val} cm`,
+          explanationUr: isArea ? `رقبہ = ضلع × ضلع = ${s} × ${s} = ${val} مربع سم` : `احاطہ = 4 × ضلع = 4 × ${s} = ${val} سم`,
         };
       }
 
@@ -259,12 +220,15 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
         const a = Math.floor(Math.random() * 12) + 1;
         const b = selectedTimesTable;
         const ans = a * b;
-        const opts = shuffle([ans.toString(), (ans + b).toString(), (ans - b).toString(), (ans + 3).toString()]);
+        const opts = buildUnique(ans.toString(), [(ans + b).toString(), Math.max(1, ans - b).toString(), (ans + 3).toString()]);
         return {
-          prompt: `${a} × ${b} = ?`,
+          promptEn: `${a} × ${b} = ?`,
+          promptUr: `${a} × ${b} = ؟`,
           options: opts,
           correct: ans.toString(),
-          explanation: `${a} × ${b} = ${ans}`,
+          explanationEn: `${a} × ${b} = ${ans}`,
+          explanationUr: `${a} × ${b} = ${ans}`,
+          isMathOnly: true,
         };
       }
     }
@@ -272,7 +236,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
 
   // Initialize Memory Game Cards
   const initMemoryGame = () => {
-    const pairs = [
+    const pairsEasy = [
       { expr: '3 × 4', val: '12' },
       { expr: '7 + 8', val: '15' },
       { expr: '20 - 6', val: '14' },
@@ -280,6 +244,15 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
       { expr: '30 ÷ 5', val: '6' },
       { expr: '9 × 2', val: '18' },
     ];
+    const pairsHard = [
+      { expr: '12 × 6', val: '72' },
+      { expr: '48 ÷ 4', val: '12' },
+      { expr: '29 + 17', val: '46' },
+      { expr: '64 - 19', val: '45' },
+      { expr: '7 × 8', val: '56' },
+      { expr: '81 ÷ 9', val: '9' },
+    ];
+    const pairs = difficulty === 'hard' || difficulty === 'expert' ? pairsHard : pairsEasy;
     const cards: typeof memoryCards = [];
     pairs.forEach((p, idx) => {
       cards.push({ id: idx * 2, text: p.expr, matchId: idx, flipped: false, matched: false });
@@ -289,7 +262,6 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
     setFlippedCards([]);
   };
 
-  // Handle memory card flip
   const handleCardClick = (id: number) => {
     if (flippedCards.length >= 2) return;
     const clicked = memoryCards.find((c) => c.id === id);
@@ -302,8 +274,8 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
     setFlippedCards(newFlipped);
 
     if (newFlipped.length === 2) {
-      const card1 = memoryCards.find((c) => c.id === newFlipped[0])!;
-      const card2 = memoryCards.find((c) => c.id === newFlipped[1])!;
+      const card1 = updated.find((c) => c.id === newFlipped[0])!;
+      const card2 = updated.find((c) => c.id === newFlipped[1])!;
 
       if (card1.matchId === card2.matchId) {
         sound.playCorrect();
@@ -312,14 +284,14 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
             prev.map((c) => (c.matchId === card1.matchId ? { ...c, matched: true } : c))
           );
           setFlippedCards([]);
-          setScore((prev) => prev + 20);
+          const nextScore = scoreRef.current + 20;
+          setScore(nextScore);
 
-          // Check if all matched
           const remaining = updated.filter((c) => !c.matched && c.matchId !== card1.matchId);
           if (remaining.length === 0) {
-            endGame(score + 50);
+            endGame(nextScore + 30);
           }
-        }, 500);
+        }, 450);
       } else {
         sound.playWrong();
         setTimeout(() => {
@@ -327,13 +299,15 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
             prev.map((c) => (c.id === newFlipped[0] || c.id === newFlipped[1] ? { ...c, flipped: false } : c))
           );
           setFlippedCards([]);
-        }, 900);
+        }, 850);
       }
     }
   };
 
   const startGame = () => {
     sound.playClick();
+    hasEndedRef.current = false;
+    scoreRef.current = 0;
     setScore(0);
     setQuestionCount(0);
     setGameState('playing');
@@ -349,6 +323,9 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
   };
 
   const endGame = (finalScore: number) => {
+    if (hasEndedRef.current) return;
+    hasEndedRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
     setGameState('ended');
     sound.playVictory();
     triggerConfetti();
@@ -356,34 +333,33 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
     addPoints(finalScore);
   };
 
-  // Timer loop for Speed Math or timed mode
   useEffect(() => {
     if (gameState === 'playing' && game.id === 'speedMath') {
       timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current!);
-            endGame(score);
-            return 0;
-          }
-          return prev - 1;
-        });
+        setTimeLeft((prev) => Math.max(0, prev - 1));
       }, 1000);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [gameState, game.id, score]);
+  }, [gameState, game.id]);
+
+  useEffect(() => {
+    if (gameState === 'playing' && game.id === 'speedMath' && timeLeft === 0) {
+      endGame(scoreRef.current);
+    }
+  }, [timeLeft, gameState, game.id]);
 
   const handleAnswer = (option: string) => {
     if (feedback !== null || !currentQ) return;
     setSelectedOption(option);
 
     const isCorrect = option === currentQ.correct;
+    const nextScore = isCorrect ? score + 10 : score;
     if (isCorrect) {
       sound.playCorrect();
       setFeedback('correct');
-      setScore((prev) => prev + 10);
+      setScore(nextScore);
     } else {
       sound.playWrong();
       setFeedback('wrong');
@@ -396,47 +372,61 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
       setFeedback(null);
 
       if (game.id !== 'speedMath' && nextCount >= 10) {
-        endGame(score + (isCorrect ? 10 : 0));
+        endGame(nextScore);
       } else {
         setCurrentQ(generateGameQuestion());
       }
     }, 900);
   };
 
-  // INTRO SCREEN
+  const difficultyLabel = (d: Difficulty) => {
+    if (!isUrdu) return d;
+    if (d === 'easy') return 'آسان';
+    if (d === 'medium') return 'درمیانہ';
+    if (d === 'hard') return 'مشکل';
+    return 'ماہر';
+  };
+
+  // INTRO SCREEN (Matching 3D Wooden Puzzle Aesthetics)
   if (gameState === 'intro') {
     const Icon = game.icon;
     return (
-      <div className="max-w-2xl mx-auto space-y-6 pb-12">
+      <div className="max-w-2xl mx-auto space-y-5 pb-12 select-none">
         <button
           onClick={onExit}
-          className="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-500 hover:text-indigo-600 cursor-pointer"
+          className="wood-btn-3d px-3.5 py-2 flex items-center gap-2 text-xs font-black cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
-          <span>Back to All Games</span>
+          <span>{isUrdu ? 'تمام گیمز پر واپس جائیں' : 'Back to All Games'}</span>
         </button>
 
-        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-xl space-y-6 text-center">
+        <div className="wood-board-3d p-6 sm:p-9 shadow-2xl space-y-6 text-center relative">
+          <div className="brass-rivet top-2.5 left-2.5" />
+          <div className="brass-rivet top-2.5 right-2.5" />
+          <div className="brass-rivet bottom-2.5 left-2.5" />
+          <div className="brass-rivet bottom-2.5 right-2.5" />
+
           <div
-            className={`w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr ${game.gradient} text-white flex items-center justify-center shadow-lg`}
+            className={`w-20 h-20 mx-auto rounded-3xl bg-gradient-to-tr ${game.gradient} text-white flex items-center justify-center shadow-lg border-2 border-amber-300`}
           >
             <Icon className="w-10 h-10" />
           </div>
 
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900">{gameInfo.title}</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-2 max-w-md mx-auto">
+            <h1 className="text-2xl sm:text-3xl font-black text-amber-100 drop-shadow-md">
+              {gameInfo.title}
+            </h1>
+            <p className="text-xs sm:text-sm text-amber-200/90 mt-2 max-w-md mx-auto">
               {gameInfo.desc}
             </p>
           </div>
 
-          {/* Times Table Selector if timesTables game */}
           {game.id === 'timesTables' && (
-            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 block mb-2">
-                Choose Times Table to Master (1 - 20):
+            <div className="wood-board-inner p-4 border border-amber-800">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-300 block mb-2">
+                {isUrdu ? 'پہاڑا منتخب کریں (1 - 20):' : 'Choose Times Table to Master (1 - 20):'}
               </span>
-              <div className="flex flex-wrap justify-center gap-1.5">
+              <div className="flex flex-wrap justify-center gap-1.5" dir="ltr">
                 {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
                   <button
                     key={n}
@@ -446,7 +436,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
                     }}
                     className={`w-9 h-9 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
                       selectedTimesTable === n
-                        ? 'bg-emerald-600 text-white shadow-xs scale-105'
+                        ? 'gold-btn-3d text-amber-950 shadow-xs scale-105'
                         : 'wood-tile-3d hover:brightness-105'
                     }`}
                   >
@@ -457,12 +447,11 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
             </div>
           )}
 
-          {/* Difficulty selector */}
-          <div className="space-y-1.5">
-            <span className="text-xs font-bold text-amber-300 uppercase tracking-wider">
-              Select Difficulty Level
+          <div className="space-y-2">
+            <span className="text-xs font-bold text-amber-300 uppercase tracking-wider block">
+              {isUrdu ? 'مشکل کا درجہ منتخب کریں' : 'Select Difficulty Level'}
             </span>
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2">
               {game.difficultyOptions.map((diff) => (
                 <button
                   key={diff}
@@ -476,15 +465,16 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
                       : 'wood-btn-3d text-amber-200'
                   }`}
                 >
-                  {diff}
+                  {difficultyLabel(diff)}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Instructions Box */}
           <div className="wood-board-inner p-3.5 text-xs sm:text-sm text-amber-200 leading-relaxed text-start border border-amber-800">
-            <strong className="text-amber-100 block mb-1">How to Play:</strong>
+            <strong className="text-amber-100 block mb-1">
+              {isUrdu ? 'کھیلنے کا طریقہ:' : 'How to Play:'}
+            </strong>
             {gameInfo.instructions}
           </div>
 
@@ -492,7 +482,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
             onClick={startGame}
             className="w-full py-3.5 px-6 green-btn-3d rounded-2xl text-white font-black text-base shadow-lg transition-all cursor-pointer"
           >
-            {t.common.start} Game
+            {isUrdu ? `${t.common.start}` : `${t.common.start} Game`}
           </button>
         </div>
       </div>
@@ -510,16 +500,22 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
 
           <div>
             <span className="gold-badge text-[10px] px-2.5 py-0.5 rounded-full uppercase">
-              Game Over
+              {isUrdu ? 'کھیل مکمل' : 'Game Over'}
             </span>
-            <h2 className="text-2xl font-black text-amber-100 drop-shadow-md mt-1">Awesome Job!</h2>
+            <h2 className="text-2xl font-black text-amber-100 drop-shadow-md mt-1">
+              {isUrdu ? 'شاندار کارکردگی!' : 'Awesome Job!'}
+            </h2>
             <p className="text-xs text-amber-300 mt-0.5">{gameInfo.title}</p>
           </div>
 
           <div className="wood-board-inner p-4 space-y-1 border border-amber-800">
-            <div className="text-[10px] uppercase font-bold text-amber-300">Final Score</div>
+            <div className="text-[10px] uppercase font-bold text-amber-300">
+              {isUrdu ? 'حتمی اسکور' : 'Final Score'}
+            </div>
             <div className="text-3xl font-black text-yellow-300">{score}</div>
-            <div className="text-xs font-bold text-emerald-400">+{score} Points Added to Profile</div>
+            <div className="text-xs font-bold text-emerald-400">
+              {isUrdu ? `+${score} پوائنٹس پروفائل میں شامل ہو گئے` : `+${score} Points Added to Profile`}
+            </div>
           </div>
 
           <div className="flex gap-2.5 pt-2">
@@ -547,14 +543,17 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
     return (
       <div className="max-w-md mx-auto space-y-4 pb-12 select-none">
         <div className="wood-board-3d p-3 flex items-center justify-between shadow-md">
-          <button onClick={onExit} className="wood-btn-3d px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-            ← Exit
+          <button onClick={onExit} className="wood-btn-3d px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+            <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+            <span>{t.common.exit}</span>
           </button>
           <div className="font-black text-sm text-amber-100">{gameInfo.title}</div>
-          <div className="gold-btn-3d px-3 py-1 rounded-xl text-xs font-black">Score: {score}</div>
+          <div className="gold-btn-3d px-3 py-1 rounded-xl text-xs font-black">
+            {t.common.score}: {score}
+          </div>
         </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-3 wood-board-3d shadow-xl">
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 p-3 wood-board-3d shadow-xl" dir="ltr">
           {memoryCards.map((card) => {
             const isRevealed = card.flipped || card.matched;
             return (
@@ -570,7 +569,11 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
                     : 'wood-tile-3d hover:scale-102'
                 }`}
               >
-                {isRevealed ? <span className="math-symbol drop-shadow-sm">{card.text}</span> : <Sparkles className="w-6 h-6 text-amber-200" />}
+                {isRevealed ? (
+                  <span className="math-symbol drop-shadow-sm" dir="ltr">{card.text}</span>
+                ) : (
+                  <Sparkles className="w-6 h-6 text-amber-200" />
+                )}
               </button>
             );
           })}
@@ -579,27 +582,28 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
     );
   }
 
-  // STANDARD PLAYING SCREEN (Speed Math, Arithmetic, Sequence, Shapes, etc.)
+  // STANDARD PLAYING SCREEN
   return (
     <div className="max-w-md mx-auto min-h-[calc(100vh-6rem)] flex flex-col justify-between py-2 sm:py-4 px-2 select-none">
-      {/* Header bar */}
       <div className="wood-board-3d p-3 shadow-md flex items-center justify-between gap-2 mb-3">
-        <button onClick={onExit} className="wood-btn-3d px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer">
-          ← Exit
+        <button onClick={onExit} className="wood-btn-3d px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+          <ArrowLeft className="w-3.5 h-3.5 rtl:rotate-180" />
+          <span>{t.common.exit}</span>
         </button>
 
         <div className="flex items-center gap-2">
           {game.id === 'speedMath' && (
-            <div className="wood-panel-3d px-2.5 py-1 text-white text-xs font-mono font-bold flex items-center gap-1 border border-amber-800">
+            <div className="wood-panel-3d px-2.5 py-1 text-white text-xs font-mono font-bold flex items-center gap-1 border border-amber-800" dir="ltr">
               <Clock className="w-3.5 h-3.5 text-amber-400" />
               <span>{timeLeft}s</span>
             </div>
           )}
-          <div className="gold-btn-3d px-3 py-1.5 rounded-xl text-xs font-black">Score: {score}</div>
+          <div className="gold-btn-3d px-3 py-1.5 rounded-xl text-xs font-black">
+            {t.common.score}: {score}
+          </div>
         </div>
       </div>
 
-      {/* Middle Question Board */}
       {currentQ && (
         <div className="my-auto space-y-4">
           <div className="wood-board-3d p-4 sm:p-6 text-center relative shadow-2xl">
@@ -610,16 +614,18 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
 
             <div className="wood-board-inner p-5 sm:p-7 min-h-[140px] flex flex-col items-center justify-center">
               <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider mb-1">
-                Problem #{questionCount + 1}
+                {isUrdu ? `سوال #${questionCount + 1} از 10` : `Problem #${questionCount + 1} of 10`}
               </span>
 
-              <div className="text-xl sm:text-2xl md:text-3xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] math-symbol leading-snug">
-                {currentQ.prompt}
+              <div
+                className="text-xl sm:text-2xl md:text-3xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] math-symbol leading-snug"
+                dir={currentQ.isMathOnly ? 'ltr' : undefined}
+              >
+                {isUrdu ? currentQ.promptUr : currentQ.promptEn}
               </div>
             </div>
           </div>
 
-          {/* 4 Wooden Answer Tiles */}
           <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
             {currentQ.options.map((opt, idx) => {
               const isSelected = selectedOption === opt;
@@ -639,7 +645,7 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
                   key={idx}
                   onClick={() => handleAnswer(opt)}
                   disabled={feedback !== null}
-                  className={`min-h-[72px] sm:min-h-[82px] rounded-2xl text-lg sm:text-xl font-black flex items-center justify-center p-3 cursor-pointer shadow-lg active:scale-95 transition-all ${tileClass}`}
+                  className={`min-h-[72px] sm:min-h-[82px] rounded-2xl text-base sm:text-xl font-black flex items-center justify-center p-3 cursor-pointer shadow-lg active:scale-95 transition-all ${tileClass}`}
                 >
                   <span className="math-symbol drop-shadow-sm">{opt}</span>
                 </button>
@@ -647,7 +653,6 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
             })}
           </div>
 
-          {/* Instant feedback badge */}
           {feedback && (
             <div
               className={`p-3 rounded-xl border text-xs sm:text-sm font-bold text-center ${
@@ -660,12 +665,12 @@ export const GameRunner: React.FC<GameRunnerProps> = ({ game, onExit }) => {
                 {feedback === 'correct' ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Correct! (+10)</span>
+                    <span>{isUrdu ? 'درست! (+10)' : 'Correct! (+10)'}</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="w-4 h-4 text-rose-400" />
-                    <span>{currentQ.explanation}</span>
+                    <span>{isUrdu ? currentQ.explanationUr : currentQ.explanationEn}</span>
                   </>
                 )}
               </div>

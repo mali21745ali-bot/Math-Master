@@ -7,10 +7,7 @@ import {
   GraduationCap,
   Sparkles,
   HelpCircle,
-  BookOpen,
   CheckCircle,
-  Layers,
-  ChevronRight,
   Baby,
   Star,
   Clock,
@@ -33,6 +30,7 @@ export const ClassSelection: React.FC = () => {
     setSelectedClass,
     setActiveView,
     t,
+    isUrdu,
   } = useApp();
 
   const [filterCategory, setFilterCategory] = useState<'all' | 'early' | 'primary' | 'middle' | 'high' | 'university'>('all');
@@ -96,13 +94,15 @@ export const ClassSelection: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-black/30 text-amber-300 text-xs font-bold mb-1.5">
               <GraduationCap className="w-3.5 h-3.5" />
-              <span>15 Educational Grade Levels</span>
+              <span>{isUrdu ? '15 تعلیمی کلاسز اور درجات' : '15 Educational Grade Levels'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-amber-100 drop-shadow-md">
               {t.nav.selectClass}
             </h1>
             <p className="text-xs sm:text-sm text-amber-200/90 mt-0.5">
-              Choose your grade level from Nursery to University. Every class features progressive Levels 1 to 10!
+              {isUrdu
+                ? 'نرسری سے لے کر یونیورسٹی تک اپنی کلاس منتخب کریں۔ ہر کلاس میں لیول 1 تا 10 شامل ہیں!'
+                : 'Choose your grade level from Nursery to University. Every class features progressive Levels 1 to 10!'}
             </p>
           </div>
         </div>
@@ -112,11 +112,11 @@ export const ClassSelection: React.FC = () => {
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {[
           { id: 'all', label: t.common.all },
-          { id: 'early', label: 'Early Years (Nursery - KG)' },
-          { id: 'primary', label: 'Primary (Class 1 - 3)' },
-          { id: 'middle', label: 'Middle (Class 4 - 8)' },
-          { id: 'high', label: 'High School (Class 9 - 12)' },
-          { id: 'university', label: 'University Level' },
+          { id: 'early', label: isUrdu ? 'ابتدائی (نرسری - KG)' : 'Early Years (Nursery - KG)' },
+          { id: 'primary', label: isUrdu ? 'پرائمری (کلاس 1 - 3)' : 'Primary (Class 1 - 3)' },
+          { id: 'middle', label: isUrdu ? 'مڈل (کلاس 4 - 8)' : 'Middle (Class 4 - 8)' },
+          { id: 'high', label: isUrdu ? 'ہائی اسکول (کلاس 9 - 12)' : 'High School (Class 9 - 12)' },
+          { id: 'university', label: isUrdu ? 'یونیورسٹی لیول' : 'University Level' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -143,7 +143,11 @@ export const ClassSelection: React.FC = () => {
           const localizedTitle = t.classes[item.id]?.title || item.titleEn;
           const localizedAge = t.classes[item.id]?.age || item.ageEn;
           const localizedDesc = t.classes[item.id]?.desc || item.descEn;
-          const classProg = profile.classProgress[item.id] || { unlockedLevel: 1, stars: {}, highScores: {} };
+          const classProg = (profile.classProgress && profile.classProgress[item.id]) || {
+            unlockedLevel: 1,
+            levelStars: {},
+            levelHighScores: {},
+          };
 
           return (
             <div
@@ -156,7 +160,7 @@ export const ClassSelection: React.FC = () => {
                 {/* Header row */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl wood-tile-3d flex items-center justify-center shadow-md">
+                    <div className="w-12 h-12 rounded-2xl wood-tile-3d flex items-center justify-center shadow-md flex-shrink-0">
                       <IconComp className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -166,16 +170,16 @@ export const ClassSelection: React.FC = () => {
                   </div>
 
                   {isCurrent ? (
-                    <span className="gold-badge text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs">
+                    <span className="gold-badge text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shadow-xs flex-shrink-0">
                       <CheckCircle className="w-3 h-3 text-amber-950" />
-                      <span>Active</span>
+                      <span>{isUrdu ? 'منتخب' : 'Active'}</span>
                     </span>
                   ) : (
                     <button
                       onClick={() => handleSelectAsMyClass(item.id)}
-                      className="text-xs font-bold text-amber-300 hover:text-white px-2 py-1 rounded-lg cursor-pointer"
+                      className="text-xs font-bold text-amber-300 hover:text-white px-2 py-1 rounded-lg cursor-pointer flex-shrink-0"
                     >
-                      Set Active
+                      {isUrdu ? 'منتخب کریں' : 'Set Active'}
                     </button>
                   )}
                 </div>
@@ -186,8 +190,12 @@ export const ClassSelection: React.FC = () => {
 
                 {/* Level Progress Indicator */}
                 <div className="wood-board-inner p-2.5 mb-3 border border-amber-800 flex items-center justify-between text-xs">
-                  <span className="font-bold text-amber-300">Level Progress:</span>
-                  <span className="font-black text-yellow-300">Level {classProg.unlockedLevel} / 10</span>
+                  <span className="font-bold text-amber-300">
+                    {isUrdu ? 'لیول پیش رفت:' : 'Level Progress:'}
+                  </span>
+                  <span className="font-black text-yellow-300">
+                    {isUrdu ? `لیول ${classProg.unlockedLevel} / 10` : `Level ${classProg.unlockedLevel} / 10`}
+                  </span>
                 </div>
               </div>
 
@@ -198,7 +206,7 @@ export const ClassSelection: React.FC = () => {
                   className="green-btn-3d py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                 >
                   <Play className="w-3.5 h-3.5 fill-white" />
-                  <span>Play Levels</span>
+                  <span>{isUrdu ? 'لیولز کھیلیں' : 'Play Levels'}</span>
                 </button>
 
                 <button

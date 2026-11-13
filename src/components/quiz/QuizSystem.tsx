@@ -12,11 +12,8 @@ import {
   ArrowRight,
   ArrowLeft,
   RotateCcw,
-  Sparkles,
   Trophy,
-  Filter,
   Lightbulb,
-  Coins,
 } from 'lucide-react';
 
 export const QuizSystem: React.FC = () => {
@@ -25,6 +22,7 @@ export const QuizSystem: React.FC = () => {
     selectedDifficulty,
     selectedTopicId,
     t,
+    isUrdu,
     profile,
     recordQuizResult,
     triggerConfetti,
@@ -38,12 +36,16 @@ export const QuizSystem: React.FC = () => {
   const [isAnswerChecked, setIsAnswerChecked] = useState<Record<number, boolean>>({});
   const [quizFinished, setQuizFinished] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
-  const [timerActive, setTimerActive] = useState(true);
   const [reviewMode, setReviewMode] = useState(false);
   const [typedInput, setTypedInput] = useState('');
   const [showHint, setShowHint] = useState(false);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasRecordedRef = useRef(false);
+
+  useEffect(() => {
+    setCurrentClass(selectedClass);
+  }, [selectedClass]);
 
   const loadQuiz = (cls: ClassLevel, diff: Difficulty) => {
     const list = QuestionGenerator.generateQuestions(cls, diff, 10, selectedTopicId || undefined);
@@ -56,14 +58,15 @@ export const QuizSystem: React.FC = () => {
     setTimerSeconds(0);
     setTypedInput('');
     setShowHint(false);
+    hasRecordedRef.current = false;
   };
 
   useEffect(() => {
     loadQuiz(currentClass, currentDifficulty);
-  }, [currentClass, currentDifficulty]);
+  }, [currentClass, currentDifficulty, selectedTopicId]);
 
   useEffect(() => {
-    if (timerActive && !quizFinished && questions.length > 0) {
+    if (!quizFinished && questions.length > 0) {
       timerRef.current = setInterval(() => {
         setTimerSeconds((prev) => prev + 1);
       }, 1000);
@@ -73,12 +76,12 @@ export const QuizSystem: React.FC = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timerActive, quizFinished, questions.length]);
+  }, [quizFinished, questions.length]);
 
   const currentQ = questions[currentIndex];
 
   const handleSelectAnswer = (ans: string) => {
-    if (isAnswerChecked[currentIndex] && !reviewMode) return;
+    if (isAnswerChecked[currentIndex] || reviewMode) return;
     setUserAnswers((prev) => ({ ...prev, [currentIndex]: ans }));
   };
 
@@ -91,8 +94,12 @@ export const QuizSystem: React.FC = () => {
   };
 
   const handleCheckCurrentAnswer = () => {
-    if (!userAnswers[currentIndex]) return;
-    const isCorrect = checkAnswer(userAnswers[currentIndex], currentQ);
+    const ansToCheck = currentQ?.type === 'type_answer' ? typedInput : userAnswers[currentIndex];
+    if (!ansToCheck) return;
+    if (currentQ?.type === 'type_answer') {
+      setUserAnswers((prev) => ({ ...prev, [currentIndex]: typedInput }));
+    }
+    const isCorrect = checkAnswer(ansToCheck, currentQ);
     if (isCorrect) sound.playCorrect();
     else sound.playWrong();
     setIsAnswerChecked((prev) => ({ ...prev, [currentIndex]: true }));
@@ -102,8 +109,11 @@ export const QuizSystem: React.FC = () => {
     sound.playClick();
     setShowHint(false);
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-      setTypedInput(userAnswers[currentIndex + 1] || '');
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
+      setTypedInput(userAnswers[nextIdx] || '');
+    } else if (reviewMode) {
+      setReviewMode(false);
     } else {
       finishQuiz();
     }
@@ -113,12 +123,19 @@ export const QuizSystem: React.FC = () => {
     sound.playClick();
     setShowHint(false);
     if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
-      setTypedInput(userAnswers[currentIndex - 1] || '');
+      const prevIdx = currentIndex - 1;
+      setCurrentIndex(prevIdx);
+      setTypedInput(userAnswers[prevIdx] || '');
     }
   };
 
   const finishQuiz = () => {
+    if (hasRecordedRef.current) {
+      setQuizFinished(true);
+      return;
+    }
+    hasRecordedRef.current = true;
+
     let correctCount = 0;
     questions.forEach((q, idx) => {
       if (checkAnswer(userAnswers[idx] || '', q)) {
@@ -129,11 +146,9 @@ export const QuizSystem: React.FC = () => {
     setQuizFinished(true);
     recordQuizResult(correctCount, questions.length);
 
-    if (correctCount === questions.length) {
-      sound.playVictory();
+    sound.playVictory();
+    if (correctCount >= Math.ceil(questions.length * 0.7)) {
       triggerConfetti();
-    } else {
-      sound.playVictory();
     }
   };
 
@@ -156,6 +171,13 @@ export const QuizSystem: React.FC = () => {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const diffLabels: Record<Difficulty, string> = {
+    easy: t.common.easy,
+    medium: t.common.medium,
+    hard: t.common.hard,
+    expert: t.common.expert,
+  };
+
   // Result Screen
   if (quizFinished && !reviewMode) {
     const scoreData = calculateScore();
@@ -170,40 +192,40 @@ export const QuizSystem: React.FC = () => {
 
           <div>
             <span className="gold-badge text-[10px] px-2.5 py-0.5 rounded-full uppercase">
-              Quiz Completed
+              {isUrdu ? 'کوئیز مکمل' : 'Quiz Completed'}
             </span>
             <h2 className="text-2xl sm:text-3xl font-black text-amber-100 drop-shadow-md mt-1">
               {scoreData.percentage >= 80 ? t.common.congratulations : t.common.wellDone}
             </h2>
             <p className="text-xs text-amber-300 font-bold mt-0.5">
-              {t.classes[currentClass]?.title} • {currentDifficulty.toUpperCase()}
+              {t.classes[currentClass]?.title} • {diffLabels[currentDifficulty]}
             </p>
           </div>
 
           <div className="grid grid-cols-3 gap-2 wood-board-inner p-3.5 border border-amber-800">
             <div>
               <div className="text-[10px] text-amber-300 font-bold uppercase">{t.common.score}</div>
-              <div className="text-xl font-black text-yellow-300 mt-0.5">
+              <div className="text-xl font-black text-yellow-300 mt-0.5" dir="ltr">
                 {scoreData.correct}/{scoreData.total}
               </div>
             </div>
             <div>
               <div className="text-[10px] text-amber-300 font-bold uppercase">{t.common.accuracy}</div>
-              <div className="text-xl font-black text-emerald-400 mt-0.5">
+              <div className="text-xl font-black text-emerald-400 mt-0.5" dir="ltr">
                 {scoreData.percentage}%
               </div>
             </div>
             <div>
               <div className="text-[10px] text-amber-300 font-bold uppercase">{t.common.time}</div>
-              <div className="text-xl font-black text-white mt-0.5">
+              <div className="text-xl font-black text-white mt-0.5" dir="ltr">
                 {formatTimer(timerSeconds)}
               </div>
             </div>
           </div>
 
           <div className="gold-btn-3d p-3 rounded-xl flex items-center justify-between text-xs font-black">
-            <span>Points Awarded:</span>
-            <span>+{scoreData.pointsEarned} Points</span>
+            <span>{isUrdu ? 'حاصل کردہ پوائنٹس:' : 'Points Awarded:'}</span>
+            <span>+{scoreData.pointsEarned} {t.common.points}</span>
           </div>
 
           <div className="space-y-2 pt-2">
@@ -240,7 +262,7 @@ export const QuizSystem: React.FC = () => {
   if (!currentQ) {
     return (
       <div className="wood-board-3d max-w-md mx-auto p-8 text-center text-amber-200">
-        Loading questions...
+        {isUrdu ? 'سوالات لوڈ ہو رہے ہیں...' : 'Loading questions...'}
       </div>
     );
   }
@@ -254,14 +276,15 @@ export const QuizSystem: React.FC = () => {
     <div className="max-w-md mx-auto min-h-[calc(100vh-6rem)] flex flex-col justify-between py-2 sm:py-4 px-2 select-none">
       {/* Top Filter & Settings */}
       <div className="wood-board-3d p-3 shadow-md flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           <select
             value={currentClass}
+            disabled={reviewMode}
             onChange={(e) => {
               sound.playClick();
               setCurrentClass(e.target.value as ClassLevel);
             }}
-            className="text-xs font-black bg-amber-950/80 text-amber-200 border border-amber-800 rounded-lg px-2 py-1 focus:outline-none"
+            className="text-xs font-black bg-amber-950/80 text-amber-200 border border-amber-800 rounded-lg px-2 py-1 focus:outline-none max-w-[130px] truncate"
           >
             {classesList.map((c) => (
               <option key={c.id} value={c.id}>
@@ -272,6 +295,7 @@ export const QuizSystem: React.FC = () => {
 
           <select
             value={currentDifficulty}
+            disabled={reviewMode}
             onChange={(e) => {
               sound.playClick();
               setCurrentDifficulty(e.target.value as Difficulty);
@@ -285,7 +309,7 @@ export const QuizSystem: React.FC = () => {
           </select>
         </div>
 
-        <div className="wood-panel-3d px-2.5 py-1 text-white text-xs font-mono font-bold flex items-center gap-1">
+        <div className="wood-panel-3d px-2.5 py-1 text-white text-xs font-mono font-bold flex items-center gap-1 flex-shrink-0" dir="ltr">
           <Clock className="w-3.5 h-3.5 text-amber-400" />
           <span>{formatTimer(timerSeconds)}</span>
         </div>
@@ -300,19 +324,19 @@ export const QuizSystem: React.FC = () => {
           <div className="absolute bottom-2.5 right-2.5 brass-rivet" />
 
           <div className="wood-board-inner p-5 sm:p-7 min-h-[140px] flex flex-col items-center justify-center">
-            {currentQ.visualEmoji && currentQ.visualCount && (
+            {currentQ.visualEmoji && currentQ.visualCount && currentQ.visualCount <= 20 && (
               <div className="text-2xl sm:text-3xl mb-2 tracking-widest animate-pulse">
                 {Array(currentQ.visualCount).fill(currentQ.visualEmoji).join(' ')}
               </div>
             )}
 
-            <div className="text-xl sm:text-2xl md:text-3xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] leading-snug">
+            <div className="text-xl sm:text-2xl md:text-3xl font-black text-amber-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] leading-snug whitespace-pre-line">
               {profile.language === 'ur' ? currentQ.questionUr : currentQ.questionEn}
             </div>
           </div>
         </div>
 
-        {/* 4 Wooden Answer Tiles */}
+        {/* 4 Wooden Answer Tiles or Typed Input */}
         {options.length > 0 && currentQ.type !== 'type_answer' ? (
           <div className="grid grid-cols-2 gap-3">
             {options.map((opt, idx) => {
@@ -337,7 +361,7 @@ export const QuizSystem: React.FC = () => {
                     sound.playClick();
                     handleSelectAnswer(opt);
                   }}
-                  disabled={isChecked && !reviewMode}
+                  disabled={isChecked || reviewMode}
                   className={`min-h-[70px] sm:min-h-[80px] rounded-2xl text-base sm:text-xl font-black flex items-center justify-center p-3 cursor-pointer shadow-lg active:scale-95 transition-all ${tileClass}`}
                 >
                   <span className="math-symbol drop-shadow-sm">{opt}</span>
@@ -350,8 +374,13 @@ export const QuizSystem: React.FC = () => {
             <input
               type="text"
               value={typedInput}
-              onChange={(e) => setTypedInput(e.target.value)}
-              placeholder="Type your answer..."
+              disabled={isChecked || reviewMode}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTypedInput(val);
+                handleSelectAnswer(val);
+              }}
+              placeholder={isUrdu ? 'اپنا جواب یہاں لکھیں...' : 'Type your answer...'}
               className="w-full p-3.5 rounded-xl border-2 border-amber-800 bg-amber-950/90 text-white font-bold text-lg text-center focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
           </div>
@@ -370,7 +399,7 @@ export const QuizSystem: React.FC = () => {
               {isCorrect ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>{t.common.correct} (+10 Points)</span>
+                  <span>{t.common.correct} (+10 {t.common.points})</span>
                 </>
               ) : (
                 <>
@@ -387,7 +416,7 @@ export const QuizSystem: React.FC = () => {
 
         {showHint && (
           <div className="wood-panel-3d p-3 text-amber-200 text-xs text-center border border-amber-600">
-            <strong>Hint: </strong>
+            <strong>{isUrdu ? 'اشارہ: ' : 'Hint: '}</strong>
             {profile.language === 'ur' ? currentQ.hintUr || 'غور سے حل کریں۔' : currentQ.hintEn || 'Break down step-by-step.'}
           </div>
         )}
@@ -399,7 +428,7 @@ export const QuizSystem: React.FC = () => {
           <button
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="wood-btn-3d px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-40"
+            className="wood-btn-3d px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4 rtl:rotate-180" />
           </button>
@@ -410,7 +439,8 @@ export const QuizSystem: React.FC = () => {
                 sound.playClick();
                 setShowHint(!showHint);
               }}
-              className="wood-btn-3d px-2.5 py-2 rounded-xl text-xs font-bold"
+              className="wood-btn-3d px-2.5 py-2 rounded-xl text-xs font-bold cursor-pointer"
+              title={isUrdu ? 'اشارہ دیکھیں' : 'Show Hint'}
             >
               <Lightbulb className="w-4 h-4 text-amber-200" />
             </button>
@@ -418,28 +448,31 @@ export const QuizSystem: React.FC = () => {
         </div>
 
         {/* Question Counter Pill */}
-        <div className="wood-panel-3d px-3 py-1.5 text-center text-xs font-black text-amber-200">
-          Q {currentIndex + 1} / {questions.length}
+        <div className="wood-panel-3d px-3 py-1.5 text-center text-xs font-black text-amber-200" dir="ltr">
+          {currentIndex + 1} / {questions.length}
         </div>
 
         <div className="flex items-center gap-1.5">
           {!isChecked && (currentAnswer || typedInput) && (
             <button
-              onClick={() => {
-                if (currentQ.type === 'type_answer') handleSelectAnswer(typedInput);
-                handleCheckCurrentAnswer();
-              }}
-              className="green-btn-3d px-3 py-2 rounded-xl text-xs font-black"
+              onClick={handleCheckCurrentAnswer}
+              className="green-btn-3d px-3 py-2 rounded-xl text-xs font-black cursor-pointer"
             >
-              Check
+              {isUrdu ? 'چیک کریں' : 'Check'}
             </button>
           )}
 
           <button
             onClick={handleNext}
-            className="green-btn-3d px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1"
+            className="green-btn-3d px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1 cursor-pointer"
           >
-            <span>{currentIndex === questions.length - 1 ? 'Submit' : 'Next'}</span>
+            <span>
+              {currentIndex === questions.length - 1
+                ? reviewMode
+                  ? (isUrdu ? 'نتائج دیکھیں' : 'Results')
+                  : t.common.submit
+                : t.common.next}
+            </span>
             <ArrowRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>

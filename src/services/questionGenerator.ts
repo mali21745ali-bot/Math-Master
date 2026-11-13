@@ -1,4 +1,4 @@
-import { ClassLevel, Difficulty, QuestionType, QuizQuestion } from '../types';
+import { ClassLevel, Difficulty, QuestionType, QuizQuestion, GameMode } from '../types';
 
 // Helper to pick random item
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -16,6 +16,38 @@ const shuffle = <T>(arr: T[]): T[] => {
   return copy;
 };
 
+// Helper to guarantee 4 unique options
+const buildUniqueOptions = (
+  correct: string,
+  candidates: string[],
+  fallback?: (step: number) => string
+): string[] => {
+  const seen = new Set<string>([correct]);
+  const result: string[] = [correct];
+  for (const c of candidates) {
+    if (!seen.has(c)) {
+      seen.add(c);
+      result.push(c);
+    }
+    if (result.length === 4) break;
+  }
+  let step = 1;
+  while (result.length < 4 && step < 40) {
+    const numVal = Number(correct);
+    const nextOpt = fallback
+      ? fallback(step)
+      : !Number.isNaN(numVal) && correct.trim() !== '' && !correct.includes('/')
+      ? (numVal + (step % 2 === 0 ? step : -step)).toString()
+      : `${correct} (${step})`;
+    if (!seen.has(nextOpt)) {
+      seen.add(nextOpt);
+      result.push(nextOpt);
+    }
+    step++;
+  }
+  return shuffle(result);
+};
+
 export class QuestionGenerator {
   /**
    * Generate a set of questions tailored to classLevel, difficulty, and optional topic.
@@ -26,6 +58,29 @@ export class QuestionGenerator {
     count: number = 10,
     topicFilter?: string
   ): QuizQuestion[] {
+    if (topicFilter) {
+      const topicMap: Record<string, GameMode> = {
+        counting_numbers: 'addition',
+        addition_subtraction: 'mixed',
+        multiplication_division: 'multiplication',
+        even_odd_ordering: 'sequence',
+        fractions_decimals: 'fractions',
+        percentages_ratios: 'mental_math',
+        lcm_hcf: 'division',
+        algebra_expressions: 'algebra',
+        linear_equations: 'algebra',
+        quadratic_equations: 'algebra',
+        polynomials: 'algebra',
+        matrices_determinants: 'algebra',
+        abstract_algebra: 'algebra',
+      };
+      const mappedMode = topicMap[topicFilter];
+      if (mappedMode) {
+        const levelTier = difficulty === 'easy' ? 2 : difficulty === 'medium' ? 5 : difficulty === 'hard' ? 8 : 10;
+        return this.generateArithmeticQuestions(mappedMode, classLevel, levelTier, count);
+      }
+    }
+
     const list: QuizQuestion[] = [];
     const usedKeys = new Set<string>();
 
@@ -892,51 +947,642 @@ export class QuestionGenerator {
 
   /**
    * Generate arithmetic questions specifically tailored for the 3D wooden game boards:
-   * Addition (+), Subtraction (-), Multiplication (×), Division (÷), and Mixed (+ − × ÷)
-   * Scaled across Nursery -> Class 12 & University across 10 progressive levels.
+   * Addition (+), Subtraction (-), Multiplication (×), Division (÷), Mixed (+ − × ÷),
+   * Missing Number, Number Sequence, Times Tables, Fractions, Quiz, and Mental Math.
+   * Scaled across Nursery -> Class 12 & University across 10 progressive levels for 20 questions.
    */
   public static generateArithmeticQuestions(
-    opType: 'addition' | 'subtraction' | 'multiplication' | 'division' | 'mixed',
+    opType: GameMode | string,
     classLevel: ClassLevel,
     levelTier: number = 1,
-    count: number = 5
+    count: number = 20
   ): QuizQuestion[] {
     const questions: QuizQuestion[] = [];
+    const usedKeys = new Set<string>();
+
     const isEarly = classLevel === 'nursery' || classLevel === 'kg';
     const isPrimary = classLevel === 'class1' || classLevel === 'class2' || classLevel === 'class3';
     const isMiddle = classLevel === 'class4' || classLevel === 'class5' || classLevel === 'class6';
     const isJunior = classLevel === 'class7' || classLevel === 'class8' || classLevel === 'class9';
     const isAdvanced = classLevel === 'class10' || classLevel === 'class11' || classLevel === 'class12' || classLevel === 'university';
 
-    const emojis = ['🍎', '⭐', '🎈', '🐱', '🚗', '🍓', '🧸', '🌸', '🍪', '🦁'];
+    const emojis = ['🍎', '⭐', '🎈', '🐱', '🚗', '🍓', '🧸', '🌸', '🍪', '🦁', '⚽', '🚀'];
 
-    for (let i = 0; i < count; i++) {
+    let attempts = 0;
+    while (questions.length < count && attempts < count * 15) {
+      attempts++;
+      const allowDuplicate = attempts > count * 10;
       let chosenOp = opType;
+
       if (opType === 'mixed') {
-        const pool: ('addition' | 'subtraction' | 'multiplication' | 'division')[] =
-          isEarly ? ['addition', 'subtraction'] :
-          isPrimary ? ['addition', 'subtraction', 'multiplication'] :
-          ['addition', 'subtraction', 'multiplication', 'division'];
+        const pool = isEarly
+          ? ['addition', 'subtraction']
+          : isPrimary
+          ? ['addition', 'subtraction', 'multiplication']
+          : ['addition', 'subtraction', 'multiplication', 'division'];
+        chosenOp = pick(pool);
+      } else if (opType === 'quiz') {
+        const pool = isEarly
+          ? ['addition', 'subtraction', 'missing_number']
+          : ['addition', 'subtraction', 'multiplication', 'division', 'fractions', 'missing_number', 'sequence', 'algebra'];
         chosenOp = pick(pool);
       }
 
-      const id = `arith-${chosenOp}-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`;
-      const difficulty = levelTier <= 2 ? 'easy' : levelTier <= 6 ? 'medium' : levelTier <= 8 ? 'hard' : 'expert';
+      const id = `game-${chosenOp}-${levelTier}-${Date.now()}-${questions.length}-${Math.random().toString(36).substring(2, 6)}`;
+      const difficulty: Difficulty = levelTier <= 2 ? 'easy' : levelTier <= 6 ? 'medium' : levelTier <= 8 ? 'hard' : 'expert';
 
-      // --- NURSERY / KG (Picture-based, small single digits) ---
+      // --- ALGEBRA MODE ---
+      if (chosenOp === 'algebra') {
+        if (isEarly || isPrimary) {
+          const x = randInt(2, isEarly ? 6 : 15);
+          const a = randInt(1, isEarly ? 5 : 12);
+          const sum = a + x;
+          const key = `alg-pri-${a}-${x}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(x.toString(), [(x + 1).toString(), Math.max(1, x - 1).toString(), (x + 2).toString()]);
+          questions.push({
+            id,
+            type: 'mcq',
+            classLevel,
+            topic: 'Algebra Basics',
+            difficulty,
+            questionEn: `Find x:  ${a} + x = ${sum}`,
+            questionUr: `x کی قیمت معلوم کریں:  ${a} + x = ${sum}`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: x.toString(),
+            correctAnswerUr: x.toString(),
+            explanationEn: `Subtract ${a} from ${sum}: x = ${sum} - ${a} = ${x}.`,
+            explanationUr: `${sum} میں سے ${a} تفریق کریں: x = ${sum} - ${a} = ${x}۔`,
+            hintEn: `What number added to ${a} gives ${sum}?`,
+            hintUr: `${a} میں کیا جمع کریں کہ ${sum} بن جائے؟`,
+          });
+        } else if (isMiddle) {
+          const a = randInt(2, 6);
+          const x = randInt(2, 10);
+          const b = randInt(1, 12);
+          const c = a * x + b;
+          const key = `alg-mid-${a}-${x}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(x.toString(), [(x + 1).toString(), Math.max(1, x - 1).toString(), (x + 3).toString()]);
+          questions.push({
+            id,
+            type: 'mcq',
+            classLevel,
+            topic: 'Linear Algebra',
+            difficulty,
+            questionEn: `Solve for x:  ${a}x + ${b} = ${c}`,
+            questionUr: `x کی قیمت معلوم کریں:  ${a}x + ${b} = ${c}`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: x.toString(),
+            correctAnswerUr: x.toString(),
+            explanationEn: `${a}x = ${c} - ${b} = ${c - b}, so x = ${c - b} ÷ ${a} = ${x}.`,
+            explanationUr: `${a}x = ${c - b}، پس x = ${c - b} ÷ ${a} = ${x}۔`,
+            hintEn: `Subtract ${b} first, then divide by ${a}.`,
+            hintUr: `پہلے ${b} تفریق کریں، پھر ${a} پر تقسیم کریں۔`,
+          });
+        } else if (isJunior) {
+          const kind = pick(['linear', 'expand', 'identity']);
+          if (kind === 'expand') {
+            const a = randInt(2, 5);
+            const b = randInt(2, 7);
+            const c = randInt(1, 6);
+            const ans = `${a * b}x + ${a * c}`;
+            const key = `alg-exp-${a}-${b}-${c}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(ans, [`${a * b}x + ${c}`, `${a + b}x + ${a * c}`, `${a * b}x - ${a * c}`]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Algebraic Expansion',
+              difficulty,
+              questionEn: `Expand:  ${a}(${b}x + ${c}) = ?`,
+              questionUr: `توسیع کریں:  ${a}(${b}x + ${c}) = ؟`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: ans,
+              correctAnswerUr: ans,
+              explanationEn: `Distribute ${a}: (${a} × ${b}x) + (${a} × ${c}) = ${ans}.`,
+              explanationUr: `${a} کو بریکٹ کے دونوں ارکان سے ضرب دیں: ${ans}۔`,
+              hintEn: `Multiply ${a} with both terms inside brackets.`,
+              hintUr: `${a} کو بریکٹ کے اندر ہر رکن سے ضرب دیں۔`,
+            });
+          } else if (kind === 'identity') {
+            const a = randInt(2, 6);
+            const ans = `x² + ${2 * a}x + ${a * a}`;
+            const key = `alg-id-${a}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(ans, [
+              `x² + ${a * a}`,
+              `x² + ${a}x + ${a * a}`,
+              `x² + ${2 * a}x + ${2 * a}`,
+            ]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Algebraic Identities',
+              difficulty,
+              questionEn: `Expand identity:  (x + ${a})² = ?`,
+              questionUr: `الجبرائی کلیے سے کھولیں:  (x + ${a})² = ؟`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: ans,
+              correctAnswerUr: ans,
+              explanationEn: `Using (A + B)² = A² + 2AB + B²: x² + 2(${a})x + ${a}² = ${ans}.`,
+              explanationUr: `(A + B)² = A² + 2AB + B² کے مطابق جواب ${ans} ہے۔`,
+              hintEn: `Remember (a + b)² = a² + 2ab + b².`,
+              hintUr: `کلیہ یاد کریں: (a + b)² = a² + 2ab + b²۔`,
+            });
+          } else {
+            const a = randInt(3, 8);
+            const x = randInt(-6, 9);
+            const b = randInt(2, 10);
+            const c = a * x - b;
+            const key = `alg-jun-lin-${a}-${x}-${b}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(x.toString(), [(x + 1).toString(), (x - 1).toString(), (-x === x ? x + 2 : -x).toString()]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Linear Equations',
+              difficulty,
+              questionEn: `Solve for x:  ${a}x - ${b} = ${c}`,
+              questionUr: `x کی قیمت معلوم کریں:  ${a}x - ${b} = ${c}`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: x.toString(),
+              correctAnswerUr: x.toString(),
+              explanationEn: `Add ${b}: ${a}x = ${c + b}, then divide by ${a}: x = ${x}.`,
+              explanationUr: `${b} جمع کریں: ${a}x = ${c + b}، پس x = ${x}۔`,
+              hintEn: `Add ${b} to both sides first.`,
+              hintUr: `پہلے دونوں طرف ${b} جمع کریں۔`,
+            });
+          }
+        } else {
+          // High school & University Algebra
+          const kind = pick(['quad', 'det', 'func']);
+          if (kind === 'det') {
+            const a = randInt(2, 6);
+            const b = randInt(1, 5);
+            const c = randInt(1, 4);
+            const d = randInt(2, 7);
+            const det = a * d - b * c;
+            const key = `alg-det-${a}-${b}-${c}-${d}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(det.toString(), [(a * d + b * c).toString(), (det + 2).toString(), (det - 3).toString()]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Matrix Algebra',
+              difficulty,
+              questionEn: `Determinant of [[${a}, ${b}], [${c}, ${d}]] = ?`,
+              questionUr: `قالب [[${a}, ${b}], [${c}, ${d}]] کا مقطع (Determinant) معلوم کریں:`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: det.toString(),
+              correctAnswerUr: det.toString(),
+              explanationEn: `det = (${a} × ${d}) - (${b} × ${c}) = ${a * d} - ${b * c} = ${det}.`,
+              explanationUr: `مقطع = (${a} × ${d}) - (${b} × ${c}) = ${det}۔`,
+              hintEn: `Use ad - bc.`,
+              hintUr: `فارمولا ad - bc استعمال کریں۔`,
+            });
+          } else if (kind === 'func') {
+            const m = randInt(2, 5);
+            const x = randInt(2, 5);
+            const c = randInt(1, 9);
+            const ans = m * x * x + c;
+            const key = `alg-fn-${m}-${x}-${c}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(ans.toString(), [(m * x + c).toString(), (ans + m).toString(), (ans - 2).toString()]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Algebraic Functions',
+              difficulty,
+              questionEn: `If f(x) = ${m}x² + ${c}, find f(${x}) = ?`,
+              questionUr: `اگر f(x) = ${m}x² + ${c} ہو تو f(${x}) معلوم کریں:`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: ans.toString(),
+              correctAnswerUr: ans.toString(),
+              explanationEn: `f(${x}) = ${m}(${x})² + ${c} = ${m * x * x} + ${c} = ${ans}.`,
+              explanationUr: `x = ${x} درج کرنے سے: ${m}(${x})² + ${c} = ${ans}۔`,
+              hintEn: `Square ${x} first, multiply by ${m}, then add ${c}.`,
+              hintUr: `پہلے ${x} کا مربع لیں، ${m} سے ضرب دیں پھر ${c} جمع کریں۔`,
+            });
+          } else {
+            const r1 = randInt(1, 5);
+            const r2 = randInt(2, 6);
+            const ans = `x = ${r1}, ${r2}`;
+            const key = `alg-quad-${r1}-${r2}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(ans, [
+              `x = -${r1}, -${r2}`,
+              `x = ${r1 + 1}, ${r2}`,
+              `x = ${r1}, -${r2}`,
+            ]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Quadratic Algebra',
+              difficulty,
+              questionEn: `Roots of x² - ${r1 + r2}x + ${r1 * r2} = 0:`,
+              questionUr: `مساوات x² - ${r1 + r2}x + ${r1 * r2} = 0 کے روٹس:`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: ans,
+              correctAnswerUr: ans,
+              explanationEn: `(x - ${r1})(x - ${r2}) = 0 ⇒ x = ${r1}, ${r2}.`,
+              explanationUr: `تجزی (x - ${r1})(x - ${r2}) = 0 سے x = ${r1}, ${r2} حاصل ہوتا ہے۔`,
+              hintEn: `Find two numbers that add to ${r1 + r2} and multiply to ${r1 * r2}.`,
+              hintUr: `ایسے دو اعداد تلاش کریں جن کا مجموعہ ${r1 + r2} اور حاصل ضرب ${r1 * r2} ہو۔`,
+            });
+          }
+        }
+        continue;
+      }
+
+      // --- MISSING NUMBER PUZZLE MODE ---
+      if (chosenOp === 'missing_number') {
+        if (isEarly) {
+          const a = randInt(1, Math.min(8, levelTier + 3));
+          const b = randInt(1, 6);
+          const sum = a + b;
+          const key = `miss-${a}+?=${sum}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(b.toString(), [(b + 1).toString(), (b + 2).toString(), (b + 3).toString()]);
+          questions.push({
+            id,
+            type: 'missing_number',
+            classLevel,
+            topic: 'Missing Number',
+            difficulty,
+            questionEn: `${a} + ❓ = ${sum}`,
+            questionUr: `${a} + ❓ = ${sum}`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: b.toString(),
+            correctAnswerUr: b.toString(),
+            explanationEn: `Subtract ${a} from ${sum}: ${sum} - ${a} = ${b}.`,
+            explanationUr: `${sum} میں سے ${a} نکالیں: ${sum} - ${a} = ${b}۔`,
+            hintEn: `What number added to ${a} gives ${sum}?`,
+            hintUr: `${a} میں کیا جمع کریں کہ ${sum} بن جائے؟`,
+          });
+          continue;
+        }
+
+        const modeType = pick(['add', 'sub', 'mult']);
+        if (modeType === 'add') {
+          const maxVal = isPrimary ? 30 * levelTier : 80 * levelTier;
+          const a = randInt(10, maxVal);
+          const b = randInt(5, maxVal);
+          const sum = a + b;
+          const key = `miss-add-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(b.toString(), [(b + 2).toString(), Math.max(1, b - 3).toString(), (b + 10).toString()]);
+          questions.push({
+            id,
+            type: 'missing_number',
+            classLevel,
+            topic: 'Missing Addend',
+            difficulty,
+            questionEn: `${a} + ❓ = ${sum}`,
+            questionUr: `${a} + ❓ = ${sum}`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: b.toString(),
+            correctAnswerUr: b.toString(),
+            explanationEn: `${sum} - ${a} = ${b}. Therefore the missing number is ${b}.`,
+            explanationUr: `${sum} میں سے ${a} تفریق کرنے سے ${b} حاصل ہوتا ہے۔`,
+            hintEn: `Subtract ${a} from total ${sum}.`,
+            hintUr: `کل رقم ${sum} میں سے ${a} تفریق کریں۔`,
+          });
+        } else if (modeType === 'sub') {
+          const a = randInt(20, 100);
+          const b = randInt(5, a - 5);
+          const diff = a - b;
+          const key = `miss-sub-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(b.toString(), [(b + 5).toString(), Math.max(1, b - 2).toString(), (b + 10).toString()]);
+          questions.push({
+            id,
+            type: 'missing_number',
+            classLevel,
+            topic: 'Missing Subtrahend',
+            difficulty,
+            questionEn: `${a} - ❓ = ${diff}`,
+            questionUr: `${a} - ❓ = ${diff}`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: b.toString(),
+            correctAnswerUr: b.toString(),
+            explanationEn: `${a} - ${diff} = ${b}.`,
+            explanationUr: `${a} - ${diff} = ${b}۔`,
+            hintEn: `Subtract ${diff} from ${a}.`,
+            hintUr: `${a} میں سے ${diff} تفریق کریں۔`,
+          });
+        } else {
+          const a = randInt(2, Math.min(12, levelTier + 4));
+          const b = randInt(2, Math.min(12, levelTier + 3));
+          const prod = a * b;
+          const key = `miss-mult-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(b.toString(), [(b + 1).toString(), Math.max(1, b - 1).toString(), (b + 2).toString()]);
+          questions.push({
+            id,
+            type: 'missing_number',
+            classLevel,
+            topic: 'Missing Factor',
+            difficulty,
+            questionEn: `${a} × ❓ = ${prod}`,
+            questionUr: `${a} × ❓ = ${prod}`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: b.toString(),
+            correctAnswerUr: b.toString(),
+            explanationEn: `Divide ${prod} by ${a}: ${prod} ÷ ${a} = ${b}.`,
+            explanationUr: `${prod} کو ${a} پر تقسیم کریں: ${prod} ÷ ${a} = ${b}۔`,
+            hintEn: `Divide the product by ${a}.`,
+            hintUr: `حاصل ضرب کو ${a} پر تقسیم کریں۔`,
+          });
+        }
+        continue;
+      }
+
+      // --- NUMBER SEQUENCE MODE ---
+      if (chosenOp === 'sequence') {
+        if (isEarly) {
+          const start = randInt(1, 16);
+          const seq = [start, start + 1, start + 2, start + 3];
+          const missIdx = randInt(0, 3);
+          const ans = seq[missIdx].toString();
+          const display = seq.map((n, i) => (i === missIdx ? '❓' : n)).join(', ');
+          const key = `seq-early-${start}-${missIdx}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(ans, [
+            (seq[missIdx] + 1).toString(),
+            Math.max(0, seq[missIdx] - 1).toString(),
+            (seq[missIdx] + 2).toString(),
+          ]);
+          questions.push({
+            id,
+            type: 'mcq',
+            classLevel,
+            topic: 'Number Sequence',
+            difficulty,
+            questionEn: `What is the missing number in the sequence?\n${display}`,
+            questionUr: `ترتیب میں خالی جگہ (❓) پر کیا آئے گا؟\n${display}`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: ans,
+            correctAnswerUr: ans,
+            explanationEn: `The numbers count upwards by 1. The missing number is ${ans}.`,
+            explanationUr: `اعداد ایک کے اضافے سے آگے بڑھ رہے ہیں۔ گمشدہ عدد ${ans} ہے۔`,
+            hintEn: `Count forward from ${start}.`,
+            hintUr: `${start} سے آگے گنیں۔`,
+          });
+          continue;
+        }
+
+        const step = isPrimary ? randInt(2, 5) : randInt(3, 10);
+        const start = randInt(2, 25);
+        const seq = [start, start + step, start + 2 * step, start + 3 * step, start + 4 * step];
+        const missIdx = randInt(2, 3);
+        const ans = seq[missIdx].toString();
+        const display = seq.map((n, i) => (i === missIdx ? '❓' : n)).join(', ');
+        const key = `seq-step-${start}-${step}-${missIdx}`;
+        if (!allowDuplicate && usedKeys.has(key)) continue;
+        usedKeys.add(key);
+
+        const opts = buildUniqueOptions(ans, [
+          (seq[missIdx] + step).toString(),
+          (seq[missIdx] - step).toString(),
+          (seq[missIdx] + 2).toString(),
+        ]);
+        questions.push({
+          id,
+          type: 'mcq',
+          classLevel,
+          topic: 'Number Sequence',
+          difficulty,
+          questionEn: `Find the pattern and missing value:\n${display}`,
+          questionUr: `ترتیب کا اندازہ لگائیں اور خالی جگہ (❓) پر آنے والا عدد بتائیں:\n${display}`,
+          optionsEn: opts,
+          optionsUr: opts,
+          correctAnswerEn: ans,
+          correctAnswerUr: ans,
+          explanationEn: `Common difference is +${step}. Thus ${seq[missIdx - 1]} + ${step} = ${ans}.`,
+          explanationUr: `ہر عدد میں ${step} کا اضافہ ہو رہا ہے۔ پس ${seq[missIdx - 1]} + ${step} = ${ans}۔`,
+          hintEn: `Look at the difference between consecutive numbers: +${step}.`,
+          hintUr: `مسلسل اعداد کے درمیان فرق دیکھیں: +${step}۔`,
+        });
+        continue;
+      }
+
+      // --- TIMES TABLES MODE ---
+      if (chosenOp === 'times_tables') {
+        const tableBase = isPrimary
+          ? randInt(2, Math.min(10, levelTier + 3))
+          : randInt(4, Math.min(16, levelTier + 7));
+        const multiplier = randInt(2, 12);
+        const prod = tableBase * multiplier;
+        const key = `table-${tableBase}x${multiplier}`;
+        if (!allowDuplicate && usedKeys.has(key)) continue;
+        usedKeys.add(key);
+
+        const opts = buildUniqueOptions(prod.toString(), [
+          (prod + tableBase).toString(),
+          Math.max(1, prod - tableBase).toString(),
+          (prod + 2).toString(),
+        ]);
+
+        questions.push({
+          id,
+          type: 'mcq',
+          classLevel,
+          topic: `Times Table: ${tableBase}`,
+          difficulty,
+          questionEn: `${tableBase} × ${multiplier} = ?`,
+          questionUr: `${tableBase} × ${multiplier} = ؟`,
+          optionsEn: opts,
+          optionsUr: opts,
+          correctAnswerEn: prod.toString(),
+          correctAnswerUr: prod.toString(),
+          explanationEn: `${tableBase} times ${multiplier} equals ${prod}.`,
+          explanationUr: `${tableBase} کو ${multiplier} سے ضرب دینے پر حاصل ضرب ${prod} بنتا ہے۔`,
+          hintEn: `Think of ${multiplier} groups of ${tableBase}.`,
+          hintUr: `${tableBase} کے ${multiplier} گروپس کے بارے میں سوچیں۔`,
+        });
+        continue;
+      }
+
+      // --- FRACTIONS MODE ---
+      if (chosenOp === 'fractions') {
+        const den = pick([4, 6, 8, 10, 12]);
+        const n1 = randInt(1, den - 3);
+        const n2 = randInt(1, den - n1 - 1);
+        const isAdd = Math.random() > 0.3;
+        const numAns = isAdd ? n1 + n2 : Math.max(1, n1 - n2);
+        const ans = `${numAns}/${den}`;
+        const key = `frac-${n1}-${n2}-${den}-${isAdd}`;
+        if (!allowDuplicate && usedKeys.has(key)) continue;
+        usedKeys.add(key);
+
+        const opts = buildUniqueOptions(
+          ans,
+          [`${numAns + 1}/${den}`, `${numAns}/${den * 2}`, `${numAns + 2}/${den}`],
+          (s) => `${numAns + s + 2}/${den}`
+        );
+
+        questions.push({
+          id,
+          type: 'mcq',
+          classLevel,
+          topic: isAdd ? 'Fraction Addition' : 'Fraction Subtraction',
+          difficulty,
+          questionEn: `${n1}/${den} ${isAdd ? '+' : '-'} ${n2}/${den} = ?`,
+          questionUr: `${n1}/${den} ${isAdd ? '+' : '-'} ${n2}/${den} = ؟`,
+          optionsEn: opts,
+          optionsUr: opts,
+          correctAnswerEn: ans,
+          correctAnswerUr: ans,
+          explanationEn: `Common denominator is ${den}. Calculate: (${n1} ${isAdd ? '+' : '-'} ${n2}) / ${den} = ${ans}.`,
+          explanationUr: `مشترک مخرج ${den} ہے۔ شمار کنندہ کا حساب لگائیں: (${n1} ${isAdd ? '+' : '-'} ${n2}) / ${den} = ${ans}۔`,
+          hintEn: `Keep the denominator ${den} and operate on the numerators.`,
+          hintUr: `مخرج ${den} کو برقرار رکھیں اور اوپر والے اعداد حل کریں۔`,
+        });
+        continue;
+      }
+
+      // --- MENTAL MATH MODE ---
+      if (chosenOp === 'mental_math') {
+        const type = pick(['double', 'half', 'add_near_ten', 'percentage']);
+        if (type === 'double') {
+          const val = randInt(12, 75);
+          const ans = val * 2;
+          const key = `mental-double-${val}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 2).toString(), (ans - 4).toString(), (ans + 10).toString()]);
+          questions.push({
+            id,
+            type: 'mcq',
+            classLevel,
+            topic: 'Mental Math: Double',
+            difficulty,
+            questionEn: `Mental Math: What is DOUBLE of ${val}?`,
+            questionUr: `ذہنی حساب: ${val} کا دگنا (Double) کیا ہوگا؟`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: ans.toString(),
+            correctAnswerUr: ans.toString(),
+            explanationEn: `${val} × 2 = ${ans}.`,
+            explanationUr: `${val} × 2 = ${ans}۔`,
+            hintEn: `Add ${val} to itself!`,
+            hintUr: `${val} کو اپنے آپ میں جمع کریں!`,
+          });
+        } else if (type === 'half') {
+          const val = randInt(10, 50) * 2; // guaranteed even
+          const ans = val / 2;
+          const key = `mental-half-${val}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 1).toString(), (ans - 2).toString(), (ans + 5).toString()]);
+          questions.push({
+            id,
+            type: 'mcq',
+            classLevel,
+            topic: 'Mental Math: Half',
+            difficulty,
+            questionEn: `Mental Math: What is HALF of ${val}?`,
+            questionUr: `ذہنی حساب: ${val} کا آدھا (Half) کیا ہوگا؟`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: ans.toString(),
+            correctAnswerUr: ans.toString(),
+            explanationEn: `${val} ÷ 2 = ${ans}.`,
+            explanationUr: `${val} تقسیم 2 = ${ans}۔`,
+            hintEn: `Divide ${val} equally into 2 parts.`,
+            hintUr: `${val} کو 2 برابر حصوں میں تقسیم کریں۔`,
+          });
+        } else {
+          const base = randInt(2, 10) * 10;
+          const pct = pick([10, 50]);
+          const ans = (pct / 100) * base;
+          const key = `mental-pct-${pct}-${base}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 5).toString(), (ans + 10).toString(), (ans * 2 + 1).toString()]);
+          questions.push({
+            id,
+            type: 'mcq',
+            classLevel,
+            topic: 'Mental Math: Quick Percent',
+            difficulty,
+            questionEn: `Mental Math: What is ${pct}% of ${base}?`,
+            questionUr: `ذہنی حساب: ${base} کا ${pct}% کتنا ہوگا؟`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: ans.toString(),
+            correctAnswerUr: ans.toString(),
+            explanationEn: `${pct}% of ${base} = (${pct}/100) × ${base} = ${ans}.`,
+            explanationUr: `${base} کا ${pct}% = (${pct}/100) × ${base} = ${ans}۔`,
+            hintEn: pct === 50 ? '50% means exactly half!' : '10% means divide by 10!',
+            hintUr: pct === 50 ? '50 فیصد کا مطلب بالکل آدھا ہے!' : '10 فیصد کا مطلب 10 پر تقسیم ہے!',
+          });
+        }
+        continue;
+      }
+
+      // --- NURSERY / KG (Picture counting & gentle arithmetic) ---
       if (isEarly) {
         const emoji = pick(emojis);
         if (chosenOp === 'subtraction') {
-          const a = randInt(2, Math.min(6, levelTier + 2));
+          const a = randInt(2, Math.min(10, levelTier + 5));
           const b = randInt(1, a - 1);
           const ans = a - b;
+          const key = `early-sub-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
           const display = Array(a).fill(emoji).join(' ');
-          const opts = shuffle([
-            ans.toString(),
-            (ans + 1).toString(),
-            Math.max(0, ans - 1).toString(),
-            (ans + 2).toString(),
-          ]);
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 1).toString(), (ans + 2).toString(), (ans + 3).toString()]);
 
           questions.push({
             id,
@@ -952,24 +1598,83 @@ export class QuestionGenerator {
             optionsUr: opts,
             correctAnswerEn: ans.toString(),
             correctAnswerUr: ans.toString(),
-            explanationEn: `Take away ${b} from ${a}: ${a} - ${b} = ${ans}.`,
-            explanationUr: `${a} میں سے ${b} نکالیں: ${a} - ${b} = ${ans}۔`,
-            hintEn: `Count the remaining items after removing ${b}.`,
-            hintUr: `${b} اشیاء ہٹانے کے بعد باقی گنیں۔`,
+            explanationEn: `Start with ${a} ${emoji}, remove ${b} ${emoji}: ${a} - ${b} = ${ans}.`,
+            explanationUr: `شروع میں ${a} ${emoji} ہیں، ${b} نکالیں: باقی ${ans} بچے ہیں۔`,
+            hintEn: `Count the items left after removing ${b}.`,
+            hintUr: `${b} اشیاء نکال کر باقی گنیں۔`,
+          });
+        } else if (chosenOp === 'multiplication') {
+          const groups = randInt(2, Math.min(5, levelTier + 2));
+          const perGroup = randInt(1, 5);
+          const ans = groups * perGroup;
+          const key = `early-mult-${groups}-${perGroup}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const groupDisplay = Array(groups).fill(Array(perGroup).fill(emoji).join('')).join('  |  ');
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 1).toString(), (ans + 2).toString(), Math.max(1, ans - 1).toString()]);
+
+          questions.push({
+            id,
+            type: 'picture_based',
+            classLevel,
+            topic: 'Grouping & Multiplication',
+            difficulty,
+            visualEmoji: emoji,
+            visualCount: ans,
+            questionEn: `${groupDisplay}\n${groups} × ${perGroup} = ?`,
+            questionUr: `${groupDisplay}\n${groups} × ${perGroup} = ؟`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: ans.toString(),
+            correctAnswerUr: ans.toString(),
+            explanationEn: `${groups} groups of ${perGroup} ${emoji} equals ${ans}.`,
+            explanationUr: `${perGroup} اشیاء کے ${groups} گروپس مل کر ${ans} بنتے ہیں۔`,
+            hintEn: `Count all ${emoji} in every group!`,
+            hintUr: `تمام گروپس کے ${emoji} ایک ساتھ گنیں!`,
+          });
+        } else if (chosenOp === 'division') {
+          const friends = randInt(2, 4);
+          const each = randInt(1, 5);
+          const total = friends * each;
+          const key = `early-div-${total}-${friends}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
+          const display = Array(total).fill(emoji).join(' ');
+          const opts = buildUniqueOptions(each.toString(), [(each + 1).toString(), (each + 2).toString(), (each + 3).toString()]);
+
+          questions.push({
+            id,
+            type: 'picture_based',
+            classLevel,
+            topic: 'Equal Sharing',
+            difficulty,
+            visualEmoji: emoji,
+            visualCount: total,
+            questionEn: `${display}\n${total} ÷ ${friends} = ?`,
+            questionUr: `${display}\n${total} ÷ ${friends} = ؟`,
+            optionsEn: opts,
+            optionsUr: opts,
+            correctAnswerEn: each.toString(),
+            correctAnswerUr: each.toString(),
+            explanationEn: `Sharing ${total} ${emoji} equally among ${friends} gives ${each} each.`,
+            explanationUr: `${total} ${emoji} کو ${friends} حصوں میں برابر بانٹنے سے ہر حصے میں ${each} آتے ہیں۔`,
+            hintEn: `Split ${total} into ${friends} equal groups.`,
+            hintUr: `${total} کو ${friends} برابر گروپس میں تقسیم کریں۔`,
           });
         } else {
           // Addition
-          const a = randInt(1, Math.min(5, levelTier + 1));
-          const b = randInt(1, Math.min(4, levelTier + 1));
+          const a = randInt(1, Math.min(9, levelTier + 4));
+          const b = randInt(1, Math.min(9, levelTier + 4));
           const ans = a + b;
+          const key = `early-add-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
+
           const displayA = Array(a).fill(emoji).join(' ');
           const displayB = Array(b).fill(emoji).join(' ');
-          const opts = shuffle([
-            ans.toString(),
-            (ans + 1).toString(),
-            Math.max(1, ans - 1).toString(),
-            (ans + 2).toString(),
-          ]);
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 1).toString(), (ans + 2).toString(), Math.max(1, ans - 1).toString()]);
 
           questions.push({
             id,
@@ -985,10 +1690,10 @@ export class QuestionGenerator {
             optionsUr: opts,
             correctAnswerEn: ans.toString(),
             correctAnswerUr: ans.toString(),
-            explanationEn: `Combine both groups: ${a} + ${b} = ${ans}.`,
-            explanationUr: `دونوں گروپس کو ملائیں: ${a} + ${b} = ${ans}۔`,
-            hintEn: `Count all the ${emoji} all together!`,
-            hintUr: `تمام ${emoji} کو ایک ساتھ گنیں!`,
+            explanationEn: `Count all items together: ${a} + ${b} = ${ans}.`,
+            explanationUr: `تمام اشیاء کو ملا کر گنیں: ${a} + ${b} = ${ans}۔`,
+            hintEn: `Count all ${emoji} together!`,
+            hintUr: `تمام ${emoji} ایک ساتھ گنیں!`,
           });
         }
         continue;
@@ -997,12 +1702,22 @@ export class QuestionGenerator {
       // --- PRIMARY (Classes 1 to 3) ---
       if (isPrimary) {
         if (chosenOp === 'addition') {
-          const maxNum = levelTier <= 3 ? 20 : levelTier <= 7 ? 60 : 120;
-          const a = randInt(5, maxNum);
-          const b = randInt(3, maxNum / 2);
+          // Class 1: 5+3 (single-digit). Class 2: 25+16 (2-digit). Class 3: 148+235 (3-digit).
+          let a = randInt(3, 10);
+          let b = randInt(2, 9);
+          if (classLevel === 'class2') {
+            a = randInt(15, 45);
+            b = randInt(12, 38);
+          } else if (classLevel === 'class3') {
+            a = randInt(100, 350);
+            b = randInt(80, 250);
+          }
           const ans = a + b;
-          const opts = shuffle([ans.toString(), (ans + 1).toString(), (ans - 2).toString(), (ans + 10).toString()]);
+          const key = `pri-add-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 2).toString(), Math.max(1, ans - 1).toString(), (ans + 10).toString()]);
           questions.push({
             id,
             type: 'mcq',
@@ -1016,17 +1731,26 @@ export class QuestionGenerator {
             correctAnswerEn: ans.toString(),
             correctAnswerUr: ans.toString(),
             explanationEn: `${a} + ${b} = ${ans}.`,
-            explanationUr: `${a} میں ${b} جمع کرنے سے ${ans} حاصل ہوتا ہے۔`,
-            hintEn: `Add the ones digits first, then carry to the tens.`,
-            hintUr: `پہلے اکائیوں کو جمع کریں، پھر دہائی کو۔`,
+            explanationUr: `${a} میں ${b} جمع کرنے سے ${ans} بنتا ہے۔`,
+            hintEn: `Sum the units, then tens.`,
+            hintUr: `پہلے اکائی پھر دہائی جمع کریں۔`,
           });
         } else if (chosenOp === 'subtraction') {
-          const maxNum = levelTier <= 3 ? 20 : levelTier <= 7 ? 60 : 120;
-          const a = randInt(10, maxNum);
-          const b = randInt(2, a - 1);
+          let a = randInt(7, 18);
+          let b = randInt(2, a - 1);
+          if (classLevel === 'class2') {
+            a = randInt(30, 85);
+            b = randInt(12, a - 8);
+          } else if (classLevel === 'class3') {
+            a = randInt(200, 750);
+            b = randInt(45, a - 25);
+          }
           const ans = a - b;
-          const opts = shuffle([ans.toString(), (ans + 2).toString(), (ans - 1).toString(), (ans + 10).toString()]);
+          const key = `pri-sub-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 2).toString(), Math.max(1, ans - 2).toString(), (ans + 10).toString()]);
           questions.push({
             id,
             type: 'mcq',
@@ -1040,17 +1764,20 @@ export class QuestionGenerator {
             correctAnswerEn: ans.toString(),
             correctAnswerUr: ans.toString(),
             explanationEn: `${a} - ${b} = ${ans}.`,
-            explanationUr: `${a} میں سے ${b} نکالنے سے ${ans} بچتا ہے۔`,
+            explanationUr: `${a} میں سے ${b} نکالیں تو ${ans} بچتا ہے۔`,
             hintEn: `Subtract ${b} from ${a}.`,
             hintUr: `${a} میں سے ${b} تفریق کریں۔`,
           });
         } else if (chosenOp === 'multiplication') {
-          const tableMax = levelTier <= 3 ? 5 : levelTier <= 7 ? 10 : 12;
-          const a = randInt(2, tableMax);
-          const b = randInt(2, tableMax);
+          const maxTable = classLevel === 'class1' ? 5 : classLevel === 'class2' ? 9 : 12;
+          const a = randInt(2, maxTable);
+          const b = randInt(2, maxTable);
           const ans = a * b;
-          const opts = shuffle([ans.toString(), (ans + a).toString(), (ans - b).toString(), (ans + 3).toString()]);
+          const key = `pri-mult-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans.toString(), [(ans + a).toString(), Math.max(1, ans - b).toString(), (ans + 4).toString()]);
           questions.push({
             id,
             type: 'mcq',
@@ -1064,7 +1791,7 @@ export class QuestionGenerator {
             correctAnswerEn: ans.toString(),
             correctAnswerUr: ans.toString(),
             explanationEn: `${a} × ${b} = ${ans}.`,
-            explanationUr: `${a} ضرب ${b} برابر ہے ${ans} کے۔`,
+            explanationUr: `${a} کو ${b} سے ضرب دینے پر ${ans} حاصل ہوتا ہے۔`,
             hintEn: `Recall the times table of ${a}.`,
             hintUr: `${a} کا پہاڑا یاد کریں۔`,
           });
@@ -1073,8 +1800,11 @@ export class QuestionGenerator {
           const divisor = randInt(2, 6);
           const ans = randInt(2, 9);
           const dividend = divisor * ans;
-          const opts = shuffle([ans.toString(), (ans + 1).toString(), (ans - 1).toString(), (ans * 2).toString()]);
+          const key = `pri-div-${dividend}-${divisor}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 1).toString(), Math.max(1, ans - 1).toString(), (ans + 3).toString()]);
           questions.push({
             id,
             type: 'mcq',
@@ -1099,13 +1829,16 @@ export class QuestionGenerator {
       // --- MIDDLE SCHOOL (Classes 4 to 6: Multi-digits, Decimals, Fractions) ---
       if (isMiddle) {
         if (chosenOp === 'addition') {
-          const isDec = levelTier >= 5;
+          const isDec = Math.random() > 0.4;
           if (isDec) {
-            const a = (randInt(10, 80) / 10);
-            const b = (randInt(5, 50) / 10);
+            const a = randInt(10, 80) / 10;
+            const b = randInt(5, 60) / 10;
             const ans = parseFloat((a + b).toFixed(1));
-            const opts = shuffle([ans.toFixed(1), (ans + 0.5).toFixed(1), (ans - 0.2).toFixed(1), (ans + 1.1).toFixed(1)]);
+            const key = `mid-dec-add-${a}-${b}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
 
+            const opts = buildUniqueOptions(ans.toFixed(1), [(ans + 0.5).toFixed(1), Math.max(0.1, ans - 0.3).toFixed(1), (ans + 1.2).toFixed(1)]);
             questions.push({
               id,
               type: 'mcq',
@@ -1118,22 +1851,25 @@ export class QuestionGenerator {
               optionsUr: opts,
               correctAnswerEn: ans.toFixed(1),
               correctAnswerUr: ans.toFixed(1),
-              explanationEn: `Line up decimal points: ${a} + ${b} = ${ans}.`,
+              explanationEn: `Align the decimal points: ${a} + ${b} = ${ans}.`,
               explanationUr: `اعشاریہ کے مقامات سیدھ میں رکھ کر جمع کریں: ${a} + ${b} = ${ans}۔`,
               hintEn: `Keep the decimal point aligned!`,
               hintUr: `اعشاریہ کو ایک قطار میں رکھیں۔`,
             });
           } else {
-            const a = randInt(50, 450);
-            const b = randInt(40, 350);
+            const a = randInt(150, 850);
+            const b = randInt(80, 650);
             const ans = a + b;
-            const opts = shuffle([ans.toString(), (ans + 10).toString(), (ans - 5).toString(), (ans + 100).toString()]);
+            const key = `mid-add-${a}-${b}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
 
+            const opts = buildUniqueOptions(ans.toString(), [(ans + 10).toString(), (ans - 10).toString(), (ans + 100).toString()]);
             questions.push({
               id,
               type: 'mcq',
               classLevel,
-              topic: 'Addition with Carrying',
+              topic: 'Multi-digit Addition',
               difficulty,
               questionEn: `${a} + ${b} = ?`,
               questionUr: `${a} + ${b} = ؟`,
@@ -1143,16 +1879,19 @@ export class QuestionGenerator {
               correctAnswerUr: ans.toString(),
               explanationEn: `${a} + ${b} = ${ans}.`,
               explanationUr: `${a} + ${b} = ${ans}۔`,
-              hintEn: `Remember to carry over values greater than 9.`,
-              hintUr: `9 سے بڑے عدد کا حاصل آگے منتقل کریں۔`,
+              hintEn: `Carry over digits when sum exceeds 9.`,
+              hintUr: `9 سے بڑا حاصل آنے پر اگلی طرف منتقل کریں۔`,
             });
           }
         } else if (chosenOp === 'subtraction') {
-          const a = randInt(150, 850);
-          const b = randInt(30, a - 20);
+          const a = randInt(250, 950);
+          const b = randInt(35, a - 25);
           const ans = a - b;
-          const opts = shuffle([ans.toString(), (ans + 10).toString(), (ans - 10).toString(), (ans + 2).toString()]);
+          const key = `mid-sub-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 10).toString(), Math.max(1, ans - 10).toString(), (ans + 2).toString()]);
           questions.push({
             id,
             type: 'mcq',
@@ -1167,20 +1906,23 @@ export class QuestionGenerator {
             correctAnswerUr: ans.toString(),
             explanationEn: `${a} - ${b} = ${ans}.`,
             explanationUr: `${a} میں سے ${b} تفریق کرنے سے ${ans} حاصل ہوتا ہے۔`,
-            hintEn: `Borrow 10 from the next column if needed.`,
-            hintUr: `ضرورت ہو تو بائیں کالم سے 10 ادھار لیں۔`,
+            hintEn: `Borrow from the tens or hundreds column if needed.`,
+            hintUr: `ضرورت ہو تو بائیں کالم سے ادھار لیں۔`,
           });
         } else if (chosenOp === 'multiplication') {
-          const a = randInt(12, 35);
-          const b = randInt(4, 12);
+          const a = randInt(14, 45);
+          const b = randInt(4, 15);
           const ans = a * b;
-          const opts = shuffle([ans.toString(), (ans + 10).toString(), (ans - a).toString(), (ans + b).toString()]);
+          const key = `mid-mult-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 10).toString(), (ans - a).toString(), (ans + b).toString()]);
           questions.push({
             id,
             type: 'mcq',
             classLevel,
-            topic: 'Multi-Digit Multiplication',
+            topic: 'Two-digit Multiplication',
             difficulty,
             questionEn: `${a} × ${b} = ?`,
             questionUr: `${a} × ${b} = ؟`,
@@ -1190,15 +1932,18 @@ export class QuestionGenerator {
             correctAnswerUr: ans.toString(),
             explanationEn: `${a} × ${b} = ${ans}.`,
             explanationUr: `${a} × ${b} = ${ans}۔`,
-            hintEn: `Multiply the tens and units separately then sum.`,
+            hintEn: `Multiply tens and units separately.`,
             hintUr: `دہائی اور اکائی کو الگ الگ ضرب دے کر جمع کریں۔`,
           });
         } else {
-          const divisor = randInt(3, 12);
-          const ans = randInt(6, 25);
+          const divisor = randInt(4, 15);
+          const ans = randInt(7, 30);
           const dividend = divisor * ans;
-          const opts = shuffle([ans.toString(), (ans + 2).toString(), (ans - 1).toString(), (ans + 5).toString()]);
+          const key = `mid-div-${dividend}-${divisor}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans.toString(), [(ans + 2).toString(), (ans - 1).toString(), (ans + 5).toString()]);
           questions.push({
             id,
             type: 'mcq',
@@ -1223,78 +1968,148 @@ export class QuestionGenerator {
       // --- JUNIOR HIGH (Classes 7 to 9: Integers, Algebra, Exponents) ---
       if (isJunior) {
         if (chosenOp === 'addition' || chosenOp === 'subtraction') {
-          const coeff1 = randInt(2, 6);
-          const coeff2 = randInt(2, 5);
-          const isAdd = chosenOp === 'addition';
-          const resCoeff = isAdd ? coeff1 + coeff2 : coeff1 - coeff2;
-          const expr = isAdd ? `${coeff1}x + ${coeff2}x` : `${coeff1}x - ${coeff2}x`;
-          const ans = `${resCoeff}x`;
-          const opts = shuffle([ans, `${resCoeff + 1}x`, `${resCoeff - 2}x`, `${resCoeff}x²`]);
+          const isAlgebra = Math.random() > 0.4;
+          if (isAlgebra) {
+            const c1 = randInt(2, 7);
+            const c2 = randInt(2, 6);
+            const isAdd = chosenOp === 'addition';
+            const res = isAdd ? c1 + c2 : c1 - c2;
+            const expr = isAdd ? `${c1}x + ${c2}x` : `${c1}x - ${c2}x`;
+            const ans = `${res}x`;
+            const key = `jun-alg-${c1}-${c2}-${isAdd}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
 
-          questions.push({
-            id,
-            type: 'mcq',
-            classLevel,
-            topic: 'Algebraic Simplification',
-            difficulty,
-            questionEn: `Simplify like terms: ${expr} = ?`,
-            questionUr: `یکساں متغیرات کو آسان بنائیں: ${expr} = ؟`,
-            optionsEn: opts,
-            optionsUr: opts,
-            correctAnswerEn: ans,
-            correctAnswerUr: ans,
-            explanationEn: `Combine coefficients of x: (${coeff1} ${isAdd ? '+' : '-'} ${coeff2})x = ${ans}.`,
-            explanationUr: `x کے ضریبوں کو جمع/تفریق کریں: (${coeff1} ${isAdd ? '+' : '-'} ${coeff2})x = ${ans}۔`,
-            hintEn: `Only combine the numerical coefficients of like terms.`,
-            hintUr: `صرف ہم جنس ارکان کے عددی ضریبوں کو ملائیں۔`,
-          });
+            const opts = buildUniqueOptions(ans, [`${res + 1}x`, `${res - 2}x`, `${res}x²`]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Algebraic Terms',
+              difficulty,
+              questionEn: `Simplify like terms: ${expr} = ?`,
+              questionUr: `ہم جنس متغیرات کو آسان بنائیں: ${expr} = ؟`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: ans,
+              correctAnswerUr: ans,
+              explanationEn: `(${c1} ${isAdd ? '+' : '-'} ${c2})x = ${ans}.`,
+              explanationUr: `(${c1} ${isAdd ? '+' : '-'} ${c2})x = ${ans}۔`,
+              hintEn: `Combine coefficients of x.`,
+              hintUr: `x کے ضریبوں کو ملائیں۔`,
+            });
+          } else {
+            // Negative Integers
+            const a = randInt(-25, 20);
+            const b = randInt(-15, 25);
+            const isAdd = chosenOp === 'addition';
+            const ans = isAdd ? a + b : a - b;
+            const expr = isAdd ? `${a} + (${b})` : `${a} - (${b})`;
+            const key = `jun-int-${a}-${b}-${isAdd}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(ans.toString(), [(-ans === ans ? ans + 4 : -ans).toString(), (ans + 3).toString(), (ans - 2).toString()]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Integer Arithmetic',
+              difficulty,
+              questionEn: `Evaluate: ${expr} = ?`,
+              questionUr: `قیمت معلوم کریں: ${expr} = ؟`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: ans.toString(),
+              correctAnswerUr: ans.toString(),
+              explanationEn: `Operating on integers: ${expr} = ${ans}.`,
+              explanationUr: `صحیح اعداد کا حساب: ${expr} = ${ans}۔`,
+              hintEn: `Watch negative signs carefully!`,
+              hintUr: `منفی علامتوں کا خاص خیال رکھیں۔`,
+            });
+          }
         } else if (chosenOp === 'multiplication') {
-          const a = randInt(2, 5);
-          const b = randInt(2, 4);
+          const a = randInt(2, 6);
+          const b = randInt(2, 5);
           const ans = `${a * b}x²`;
-          const opts = shuffle([ans, `${a + b}x`, `${a * b}x`, `${a * b}x³`]);
+          const key = `jun-mult-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans, [`${a + b}x`, `${a * b}x`, `${a * b}x³`]);
           questions.push({
             id,
             type: 'mcq',
             classLevel,
-            topic: 'Algebraic Multiplication',
+            topic: 'Algebraic Product',
             difficulty,
-            questionEn: `Multiply expressions: (${a}x) × (${b}x) = ?`,
-            questionUr: `الجبری جملوں کو ضرب دیں: (${a}x) × (${b}x) = ؟`,
+            questionEn: `Multiply: (${a}x) × (${b}x) = ?`,
+            questionUr: `ضرب دیں: (${a}x) × (${b}x) = ؟`,
             optionsEn: opts,
             optionsUr: opts,
             correctAnswerEn: ans,
             correctAnswerUr: ans,
-            explanationEn: `(${a} × ${b}) · (x · x) = ${ans}.`,
-            explanationUr: `(${a} × ${b}) · (x · x) = ${ans}۔`,
-            hintEn: `Multiply numbers, then add exponents of x (x¹ · x¹ = x²).`,
-            hintUr: `اعداد کو ضرب دیں اور x کی قوتوں کو جمع کریں۔`,
+            explanationEn: `Multiply coefficients: ${a} × ${b} = ${a * b}. Add powers: x¹ · x¹ = x². Result: ${ans}.`,
+            explanationUr: `${a} × ${b} = ${a * b} اور x · x = x²۔ پس حاصل ضرب = ${ans}۔`,
+            hintEn: `Multiply the numbers and add exponents of x.`,
+            hintUr: `اعداد کو ضرب دیں اور x کی قوتیں جمع کریں۔`,
           });
         } else {
-          const a = randInt(2, 6);
-          const x = randInt(3, 9);
-          const b = a * x;
-          const ans = `${x}`;
-          const opts = shuffle([ans, `${x + 1}`, `${x - 2}`, `${x * 2}`]);
+          // Junior division: integer division & algebraic term division
+          const divisor = randInt(2, 9) * (Math.random() > 0.5 ? -1 : 1);
+          const quotient = randInt(2, 12);
+          const dividend = divisor * quotient;
+          const useAlgebra = Math.random() > 0.5;
+          if (useAlgebra) {
+            const dPos = Math.abs(divisor);
+            const dvdPos = dPos * quotient;
+            const ans = `${quotient}x`;
+            const key = `jun-div-alg-${dvdPos}-${dPos}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
 
-          questions.push({
-            id,
-            type: 'mcq',
-            classLevel,
-            topic: 'Solving Linear Equations',
-            difficulty,
-            questionEn: `Solve for x: ${a}x = ${b}`,
-            questionUr: `x کی قیمت معلوم کریں: ${a}x = ${b}`,
-            optionsEn: opts,
-            optionsUr: opts,
-            correctAnswerEn: ans,
-            correctAnswerUr: ans,
-            explanationEn: `Divide both sides by ${a}: x = ${b} ÷ ${a} = ${ans}.`,
-            explanationUr: `دونوں طرف ${a} سے تقسیم کریں: x = ${b} ÷ ${a} = ${ans}۔`,
-            hintEn: `Divide the constant by the coefficient of x.`,
-            hintUr: `دائیں طرف کی رقم کو x کے ضریب پر تقسیم کریں۔`,
-          });
+            const opts = buildUniqueOptions(ans, [`${quotient}x²`, `${quotient + 2}x`, `${Math.max(1, quotient - 1)}x`]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Algebraic Division',
+              difficulty,
+              questionEn: `Divide: (${dvdPos}x²) ÷ (${dPos}x) = ?`,
+              questionUr: `تقسیم کریں: (${dvdPos}x²) ÷ (${dPos}x) = ؟`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: ans,
+              correctAnswerUr: ans,
+              explanationEn: `${dvdPos} ÷ ${dPos} = ${quotient} and x² ÷ x = x. Result: ${ans}.`,
+              explanationUr: `${dvdPos} ÷ ${dPos} = ${quotient} اور x² ÷ x = x۔ نتیجہ: ${ans}۔`,
+              hintEn: `Divide coefficients and subtract exponents of x.`,
+              hintUr: `اعداد کو تقسیم کریں اور x کی قوتیں تفریق کریں۔`,
+            });
+          } else {
+            const key = `jun-div-${dividend}-${divisor}`;
+            if (!allowDuplicate && usedKeys.has(key)) continue;
+            usedKeys.add(key);
+
+            const opts = buildUniqueOptions(quotient.toString(), [(-quotient).toString(), (quotient + 2).toString(), (quotient - 1).toString()]);
+            questions.push({
+              id,
+              type: 'mcq',
+              classLevel,
+              topic: 'Integer Division',
+              difficulty,
+              questionEn: `Divide: (${dividend}) ÷ (${divisor}) = ?`,
+              questionUr: `تقسیم کریں: (${dividend}) ÷ (${divisor}) = ؟`,
+              optionsEn: opts,
+              optionsUr: opts,
+              correctAnswerEn: quotient.toString(),
+              correctAnswerUr: quotient.toString(),
+              explanationEn: `(${dividend}) ÷ (${divisor}) = ${quotient}.`,
+              explanationUr: `(${dividend}) ÷ (${divisor}) = ${quotient}۔`,
+              hintEn: `Remember sign rules: negative ÷ negative = positive.`,
+              hintUr: `علامتوں کا اصول یاد رکھیں: منفی ÷ منفی = مثبت۔`,
+            });
+          }
         }
         continue;
       }
@@ -1302,86 +2117,97 @@ export class QuestionGenerator {
       // --- HIGH SCHOOL & UNIVERSITY (Classes 10 to 12 & University) ---
       if (isAdvanced) {
         if (chosenOp === 'addition' || chosenOp === 'subtraction') {
-          const c1 = randInt(1, 4);
-          const c2 = randInt(2, 5);
+          const c1 = randInt(2, 6);
+          const c2 = randInt(1, 5);
           const isAdd = chosenOp === 'addition';
-          const ans = `${isAdd ? c1 + c2 : c1 - c2}x² + 5x`;
-          const opts = shuffle([
-            ans,
-            `${isAdd ? c1 + c2 : c1 - c2}x³ + 5x`,
-            `${c1 * c2}x² + 5x`,
-            `${isAdd ? c1 + c2 + 1 : c1 - c2 - 1}x² + 5x`,
-          ]);
+          const coeff = isAdd ? c1 + c2 : c1 - c2;
+          const ans = `${coeff}x² + ${isAdd ? '-1x' : '5x'}`.replace('+-', '- ');
+          const key = `adv-poly-${c1}-${c2}-${isAdd}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const cleanAns = isAdd ? `${coeff}x² - x` : `${coeff}x² + 5x`;
+          const opts = buildUniqueOptions(cleanAns, [
+            `${coeff}x³ + 5x`,
+            `${c1 * c2 + 1}x² + 5x`,
+            `${coeff + 1}x² - x`,
+          ]);
           questions.push({
             id,
             type: 'mcq',
             classLevel,
-            topic: 'Polynomial Operations',
+            topic: 'Polynomial Expression',
             difficulty,
             questionEn: `Evaluate: (${c1}x² + 2x) ${isAdd ? '+' : '-'} (${c2}x² - 3x) = ?`,
-            questionUr: `قیمت نکالیں: (${c1}x² + 2x) ${isAdd ? '+' : '-'} (${c2}x² - 3x) = ؟`,
+            questionUr: `قیمت معلوم کریں: (${c1}x² + 2x) ${isAdd ? '+' : '-'} (${c2}x² - 3x) = ؟`,
             optionsEn: opts,
             optionsUr: opts,
-            correctAnswerEn: ans,
-            correctAnswerUr: ans,
-            explanationEn: `Combine x² terms and x terms: (${c1} ${isAdd ? '+' : '-'} ${c2})x² + (2 ${isAdd ? '-' : '+'} 3)x = ${ans}.`,
-            explanationUr: `ہم جنس قوتوں کو یکجا کریں: ${ans} حاصل ہوتا ہے۔`,
-            hintEn: `Group powers of x² and powers of x separately.`,
-            hintUr: `x² اور x کی رقمیں الگ الگ جمع کریں۔`,
+            correctAnswerEn: cleanAns,
+            correctAnswerUr: cleanAns,
+            explanationEn: `Combine like terms: (${c1} ${isAdd ? '+' : '-'} ${c2})x² + (2 ${isAdd ? '-' : '+'} 3)x = ${cleanAns}.`,
+            explanationUr: `ہم جنس قوتوں کو حل کریں: ${cleanAns} حاصل ہوتا ہے۔`,
+            hintEn: `Combine x² terms and x terms separately.`,
+            hintUr: `x² اور x کے ارکان الگ الگ حل کریں۔`,
           });
         } else if (chosenOp === 'multiplication') {
-          const a = randInt(2, 4);
-          const b = randInt(1, 5);
+          const a = randInt(2, 5);
+          const b = randInt(1, 7);
           const ans = `${a * 2}x + ${a * b}`;
-          const opts = shuffle([ans, `${a * 2}x² + ${a * b}`, `${a}x + ${b}`, `${a * 2}x - ${a * b}`]);
+          const key = `adv-dist-${a}-${b}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans, [`${a * 2}x² + ${a * b}`, `${a}x + ${b}`, `${a * 2}x - ${a * b}`]);
           questions.push({
             id,
             type: 'mcq',
             classLevel,
-            topic: 'Distributive Law',
+            topic: 'Distributive Expansion',
             difficulty,
-            questionEn: `Expand: ${a}(2x + ${b}) = ?`,
+            questionEn: `Expand expression: ${a}(2x + ${b}) = ?`,
             questionUr: `توسیع کریں: ${a}(2x + ${b}) = ؟`,
             optionsEn: opts,
             optionsUr: opts,
             correctAnswerEn: ans,
             correctAnswerUr: ans,
-            explanationEn: `Distribute ${a}: (${a} × 2x) + (${a} × ${b}) = ${ans}.`,
-            explanationUr: `${a} کو بریکٹ کے اندر ہر رقم سے ضرب دیں: ${ans}۔`,
-            hintEn: `Apply the distributive property: a(b + c) = ab + ac.`,
-            hintUr: `خاصیتِ تقسیم a(b + c) = ab + ac کا اطلاق کریں۔`,
+            explanationEn: `${a} · 2x + ${a} · ${b} = ${ans}.`,
+            explanationUr: `${a} کو بریکٹ کے ہر رکن سے ضرب دیں: ${ans}۔`,
+            hintEn: `Multiply ${a} by both terms inside the bracket.`,
+            hintUr: `${a} کو بریکٹ کے دونوں ارکان سے ضرب دیں۔`,
           });
         } else {
-          // Division / Derivative evaluation
-          const k = randInt(2, 6);
-          const xVal = randInt(1, 4);
-          // d/dx (k*x²) at x = xVal -> 2*k*xVal
-          const ans = (2 * k * xVal).toString();
-          const opts = shuffle([ans, (2 * k * xVal + 4).toString(), (k * xVal).toString(), (2 * k * (xVal + 1)).toString()]);
+          // Advanced division: polynomial / rational term division
+          const a = randInt(2, 6);
+          const k = randInt(2, 9);
+          const p = randInt(2, 4);
+          const ans = `${k}x^${p - 1}`;
+          const key = `adv-div-${a}-${k}-${p}`;
+          if (!allowDuplicate && usedKeys.has(key)) continue;
+          usedKeys.add(key);
 
+          const opts = buildUniqueOptions(ans, [`${k}x^${p}`, `${k + a}x^${p - 1}`, `${k * a}x`]);
           questions.push({
             id,
             type: 'mcq',
             classLevel,
-            topic: 'Calculus Derivative Evaluation',
+            topic: 'Polynomial Division',
             difficulty,
-            questionEn: `If f(x) = ${k}x², calculate the value of f'(${xVal}) = ?`,
-            questionUr: `اگر f(x) = ${k}x² ہو، تو f'(${xVal}) کی قیمت کیا ہوگی؟`,
+            questionEn: `Simplify quotient: (${a * k}x^${p}) ÷ (${a}x) = ?`,
+            questionUr: `تقسیم حل کریں: (${a * k}x^${p}) ÷ (${a}x) = ؟`,
             optionsEn: opts,
             optionsUr: opts,
             correctAnswerEn: ans,
             correctAnswerUr: ans,
-            explanationEn: `f'(x) = 2 · ${k} · x = ${2 * k}x. Evaluating at x = ${xVal}: f'(${xVal}) = ${2 * k} × ${xVal} = ${ans}.`,
-            explanationUr: `مشتق f'(x) = ${2 * k}x۔ x = ${xVal} درج کرنے سے: ${ans} حاصل ہوا۔`,
-            hintEn: `Find the derivative first with the power rule, then substitute x.`,
-            hintUr: `پہلے پاور رول سے مشتق لیں، پھر x کی قیمت درج کریں۔`,
+            explanationEn: `${a * k} ÷ ${a} = ${k}, and x^${p} ÷ x = x^${p - 1}. Answer: ${ans}.`,
+            explanationUr: `${a * k} ÷ ${a} = ${k} اور x^${p} ÷ x = x^${p - 1}۔ جواب: ${ans}۔`,
+            hintEn: `Divide coefficients and subtract exponents.`,
+            hintUr: `ضریبوں کو تقسیم کریں اور قوت نما تفریق کریں۔`,
           });
         }
       }
     }
 
-    return questions;
+    return questions.slice(0, count);
   }
 }
+
